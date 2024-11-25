@@ -1,6 +1,7 @@
 <script lang="ts">
     import {
         Button,
+        CopyButton,
         Tooltip,
         TooltipDefinition,
     } from "carbon-components-svelte";
@@ -15,10 +16,12 @@
     } from "carbon-icons-svelte";
     import type { UploadedFile } from "$lib/types";
     import { FileType } from "$lib/types";
-    import { bytesToMB } from "$lib/utils/fileUtils";
+    import { bytesToMB, downloadFile } from "$lib/utils/fileUtils";
+    import { copyToClipboard } from "$lib/utils/clipboard";
 
     export let file: UploadedFile;
     export let onClick: (file: UploadedFile) => void;
+    export let deleteFile: (fileId: string) => void;
 
     let open = false;
 </script>
@@ -83,14 +86,16 @@
             size="small"
             kind="ghost"
             iconDescription="Download file"
-            tooltipPosition="right"
+            tooltipPosition="left"
+            on:click={() => downloadFile(file)}
         />
         <Button
             icon={Copy}
             size="small"
             kind="ghost"
             iconDescription="Copy link"
-            tooltipPosition="right"
+            tooltipPosition="top"
+            on:click={() => copyToClipboard(file.url)}
         />
         <Button
             icon={TrashCan}
@@ -98,6 +103,7 @@
             kind="ghost"
             iconDescription="Delete file"
             tooltipPosition="right"
+            on:click={() => deleteFile(file.id)}
         />
     </div>
 </div>

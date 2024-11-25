@@ -14,8 +14,8 @@
         accountChangeDialog = $bindable(),
     } = $props();
 
+
     function handleFileUpload(event: CustomEvent<readonly File[]>) {
-        console.log("handleFileUpload", event.detail);
         const file = event.detail[0];
         uploadFile(file);
     }
@@ -51,6 +51,7 @@
         <div>
             <FileUploaderButton
                 labelText="Upload file"
+                disableLabelChanges
                 on:change={handleFileUpload}
             />
         </div>

@@ -9,6 +9,7 @@ export const getFiles = () => files;
 export const setFiles = (newFiles: UploadedFile[]) => {
     files = newFiles;
 };
+
 export const addFile = (file: UploadedFile) => {
     const existingFileIndex = files.findIndex(f => f.id === file.id);
     if (existingFileIndex >= 0) {
@@ -16,6 +17,10 @@ export const addFile = (file: UploadedFile) => {
     } else {
         files.push(file);
     }
+};
+
+export const deleteFile = (fileId: string) => {
+    files = files.filter(f => f.id !== fileId);
 };
 
 export const fetchFiles = async () => {

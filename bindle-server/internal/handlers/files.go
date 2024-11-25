@@ -1,6 +1,9 @@
 package handlers
 
 import (
+	"os"
+	"path/filepath"
+
 	"github.com/gofiber/fiber/v2"
 	"github.com/google/uuid"
 	"github.com/nuuner/bindle-server/internal/models"
@@ -24,9 +27,11 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to hash file"})
 	}
 
-	existingFile := db.Where("hash = ?", hash).First(&models.UploadedFile{})
+	filePath := hash + filepath.Ext(file.Filename)
+
+	existingFile := db.Where("file_path = ?", filePath).First(&models.UploadedFile{})
 	if existingFile.Error != nil {
-		if err := c.SaveFile(file, "files/"+hash); err != nil {
+		if err := c.SaveFile(file, "files/"+filePath); err != nil {
 			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save file"})
 		}
 	}
@@ -38,7 +43,7 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 
 	fileToCreate := &models.UploadedFile{
 		FileId:   guid.String(),
-		Hash:     hash,
+		FilePath: filePath,
 		FileName: file.Filename,
 		Size:     file.Size,
 		Type:     utils.GetFileType(mimeType),
@@ -52,4 +57,21 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	return c.Status(fiber.StatusOK).JSON(fileToCreate)
+}
+
+func DeleteFile(c *fiber.Ctx, db *gorm.DB, fileId string) error {
+	uploadedFile := &models.UploadedFile{}
+	db.Where("file_id = ?", fileId).First(uploadedFile)
+	filePath := uploadedFile.FilePath
+
+	db.Delete(&models.UploadedFile{}, "file_id = ?", fileId)
+
+	existingFile := db.Where("file_path = ?", filePath).First(&models.UploadedFile{})
+	if existingFile.Error != nil {
+		if err := os.Remove("files/" + filePath); err != nil {
+			return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to delete file"})
+		}
+	}
+
+	return c.Status(fiber.StatusOK).JSON(fiber.Map{"message": "File deleted"})
 }

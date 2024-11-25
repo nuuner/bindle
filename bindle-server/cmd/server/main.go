@@ -19,8 +19,10 @@ func main() {
 		log.Fatal("failed to connect database:", err)
 	}
 
-	// Initialize Fiber
-	app := fiber.New()
+	// Initialize Fiber with config
+	app := fiber.New(fiber.Config{
+		BodyLimit: 50 * 1024 * 1024, // 50MB limit
+	})
 
 	// Add middleware
 	app.Use(cors.New(cors.Config{
@@ -45,6 +47,9 @@ func main() {
 	})
 	app.Post("/api/file", func(c *fiber.Ctx) error {
 		return handlers.UploadFile(c, db)
+	})
+	app.Delete("/api/file/:fileId", func(c *fiber.Ctx) error {
+		return handlers.DeleteFile(c, db, c.Params("fileId"))
 	})
 
 	// Start server

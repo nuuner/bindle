@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { getFileModalOpen } from "$lib/stores/fileStore.svelte";
     import { FileType, type UploadedFile } from "$lib/types";
     import {
         CopyButton,
@@ -8,6 +9,8 @@
 
     let { file = $bindable<UploadedFile | undefined>() } = $props();
 
+    let videoElement = $state<HTMLVideoElement | null>(null);
+
     $effect(() => {
         if (file?.type === FileType.text && !file?.text) {
             fetch(file.url)
@@ -15,6 +18,15 @@
                 .then((text) => {
                     file.text = text;
                 });
+        }
+    });
+
+    $effect(() => {
+        if (!getFileModalOpen()) {
+            if (videoElement) {
+                videoElement.currentTime = 0;
+                videoElement.pause();
+            }
         }
     });
 </script>
@@ -33,9 +45,11 @@
         />
     {:else if file?.type === FileType.video}
         <video
+            bind:this={videoElement}
             class="max-w-full max-h-full object-contain"
             src={file?.url}
             controls
+            loop
         >
             <track kind="captions" />
         </video>

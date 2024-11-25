@@ -1,6 +1,6 @@
 import { config } from "$lib/config";
 import { getAccountId } from "$lib/stores/accountStore.client.svelte";
-import { addFile } from "$lib/stores/fileStore.svelte";
+import { addFile, deleteFile } from "$lib/stores/fileStore.svelte";
 import type { User } from '$lib/types';
 
 const getHeaders = () => ({
@@ -33,4 +33,13 @@ export const uploadFile = async (file: File) => {
     const uploadedFile = await response.json();
     addFile(uploadedFile);
     return uploadedFile;
+};
+
+export const eraseFile = async (fileId: string) => {
+    const response = await fetch(`${config.apiHost}/file/${fileId}`, {
+        method: "DELETE",
+        headers: getHeaders(),
+    });
+    deleteFile(fileId);
+    return response.json();
 };

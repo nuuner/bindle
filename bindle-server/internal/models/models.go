@@ -20,7 +20,7 @@ const (
 type UploadedFile struct {
 	gorm.Model
 	FileId   string   `json:"fileId" gorm:"uniqueIndex"`
-	Hash     string   `json:"hash"`
+	FilePath string   `json:"filePath"`
 	FileName string   `json:"fileName"`
 	Size     int64    `json:"size"`
 	Type     FileType `json:"type"`
@@ -47,7 +47,7 @@ func (uf *UploadedFile) MarshalJSON() ([]byte, error) {
 		Size:     uf.Size,
 		Type:     uf.Type,
 		MimeType: uf.MimeType,
-		URL:      config.FileHost + uf.Hash,
+		URL:      config.FileHost + uf.FilePath,
 		Details:  uf.Details,
 	})
 }
