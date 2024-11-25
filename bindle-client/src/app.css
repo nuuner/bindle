@@ -1,0 +1,4 @@
+@import 'tailwindcss/base';
+@import 'tailwindcss/components';
+@import 'tailwindcss/utilities';
+@import 'carbon-components-svelte/css/g90.css';
