@@ -25,7 +25,7 @@
 </script>
 
 <div
-    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_110px_110px] hover:bg-zinc-900 w-full"
+    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_110px] hover:bg-zinc-900 w-full"
 >
     <div class="flex items-center justify-center">
         {#if file.type === FileType.text}
