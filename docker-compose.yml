@@ -14,7 +14,7 @@ services:
     volumes:
       - type: volume
         source: bindle_data
-        target: /root/sqlite.db
+        target: /app/sqlite.db
     restart: unless-stopped
 volumes:
   bindle_data:

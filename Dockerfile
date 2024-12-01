@@ -12,12 +12,11 @@ WORKDIR /app
 RUN apk add --no-cache gcc musl-dev
 COPY bindle-server .
 RUN go build -o /app/bindle ./cmd/server/main.go
-RUN ls -la /app
 
 FROM alpine:latest
 # Add runtime dependencies for SQLite
 RUN apk add --no-cache sqlite
-WORKDIR /root/
+WORKDIR /app
 COPY --from=backend-builder /app/bindle ./
 COPY --from=frontend-builder /app/build ./static
 
