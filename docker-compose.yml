@@ -16,3 +16,4 @@ services:
     restart: unless-stopped
 volumes:
   bindle_data:
+    name: bindle_data
