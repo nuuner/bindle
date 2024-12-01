@@ -1,12 +1,12 @@
 services:
   bindle:
     build:
-      context: .
       dockerfile: Dockerfile
     ports:
       - "3000:3000"
     env_file:
-      - ./bindle-server/.env
+      - bindle-server/.env
+      - bindle-client/.env
     environment:
       - ENVIRONMENT=production
     restart: unless-stopped
