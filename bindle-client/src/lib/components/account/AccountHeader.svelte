@@ -20,30 +20,31 @@
     }
 </script>
 
-<div class="flex justify-between items-center w-full">
+<div class="flex justify-between items-center w-full flex-wrap">
     <div>
-        <div>Current account ID</div>
+        <div class="mb-2">Current account ID</div>
         {#if getAccountId()}
-            <div class="flex items-center">
+            <div class="gap-2 flex items-center flex-wrap mb-2">
                 <strong class="mr-2 whitespace-nowrap">{getAccountId()}</strong>
-                <CopyButton
-                    class="ml-2"
-                    text={getAccountId() ?? ""}
-                    iconDescription="Copy account ID"
-                />
-                <OverflowMenu>
-                    <OverflowMenuItem
-                        text="Change account"
-                        on:click={() =>
-                            setTimeout(() => (accountChangeDialog = true))}
+                <div class="flex items-center flex-row">
+                    <CopyButton
+                        text={getAccountId() ?? ""}
+                        iconDescription="Copy account ID"
                     />
-                    <OverflowMenuItem
-                        text="Delete account"
-                        danger
-                        on:click={() =>
-                            setTimeout(() => (deleteAccountDialog = true))}
-                    />
-                </OverflowMenu>
+                    <OverflowMenu>
+                        <OverflowMenuItem
+                            text="Change account"
+                            on:click={() =>
+                                setTimeout(() => (accountChangeDialog = true))}
+                        />
+                        <OverflowMenuItem
+                            text="Delete account"
+                            danger
+                            on:click={() =>
+                                setTimeout(() => (deleteAccountDialog = true))}
+                        />
+                    </OverflowMenu>
+                </div>
             </div>
         {:else}
             <Loading class="mt-2" small withOverlay={false} />

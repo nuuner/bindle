@@ -1,6 +1,8 @@
 FROM node:latest AS frontend-builder
 WORKDIR /app
 COPY bindle-client .
+ARG VITE_CONTACT_EMAIL
+ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL
 RUN npm install
 RUN npm run build
 
