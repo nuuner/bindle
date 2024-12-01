@@ -4,13 +4,13 @@ Bindle is a modern file sharing platform built with Go and Svelte. It provides a
 
 ## Features
 
-- 🚀 Fast and lightweight
-- 🔒 Account-based file management
-- 📦 Support for multiple storage backends (Local filesystem & S3)
-- 🖼️ File preview support for images, videos, audio, and text files
-- 📱 Responsive design
-- 🎯 Drag & drop file uploads
-- 📊 Storage quota management
+- Fast and lightweight
+- Account-based file management
+- Support for multiple storage backends (Local filesystem & S3)
+- File preview support for images, videos, audio, and text files
+- Responsive design
+- Drag & drop file uploads
+- Storage quota management
 
 ## Tech Stack
 
