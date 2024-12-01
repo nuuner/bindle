@@ -1,12 +1,12 @@
 import { config } from "$lib/config";
-import { getAccountId, setAccount } from "$lib/stores/accountStore.client.svelte";
+import { getAccountId, newAccountId, setAccount } from "$lib/stores/accountStore.client.svelte";
 import { addFile, deleteFile } from "$lib/stores/fileStore.svelte";
 import { addUploadingFile, removeUploadingFile } from '$lib/stores/uploadStore.svelte';
 import type { Account, UploadedFile } from '$lib/types';
 
-const getHeaders = (isJson: boolean = true) => {
+const getHeaders = (isJson: boolean = true, accountId?: string) => {
     const headers: Record<string, string> = {
-        Authorization: getAccountId() ?? "",
+        Authorization: accountId || getAccountId() || "",
     };
     if (isJson) {
         headers['Content-Type'] = 'application/json';
@@ -21,13 +21,35 @@ export const getFilesFromServer = async () => {
     return response.json();
 };
 
-export const getMe = async (): Promise<Account> => {
+export const getMe = async (accountId?: string): Promise<Account> => {
+    try {
+        const response = await fetch(`${config.apiHost}/me`, {
+            headers: getHeaders(false, accountId),
+        });
+
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+
+        const meResponse = await response.json();
+        if (getAccountId() === meResponse.user.accountId) {
+            setAccount(meResponse);
+        }
+        return meResponse;
+    } catch (error) {
+        console.error('Failed to fetch account:', error);
+        throw error;
+    }
+};
+
+export const deleteAccount = async () => {
     const response = await fetch(`${config.apiHost}/me`, {
+        method: "DELETE",
         headers: getHeaders(),
     });
-    const account = await response.json();
-    setAccount(account);
-    return account;
+    const json = await response.json();
+    newAccountId();
+    return json;
 };
 
 export const updateFile = async (file: UploadedFile) => {

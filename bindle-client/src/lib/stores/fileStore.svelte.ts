@@ -1,5 +1,6 @@
 import { type UploadedFile } from '$lib/types';
 import { getMe } from '$lib/services/api.svelte';
+import { newAccountId, setAccount } from './accountStore.client.svelte';
 
 let files = $state<UploadedFile[]>([]);
 let selectedFile = $state<UploadedFile | null>(null);
@@ -26,6 +27,7 @@ export const deleteFile = (fileId: string) => {
 export const refreshMe = async () => {
     try {
         const meResponse = await getMe();
+
         if (meResponse.user.files) {
             setFiles(meResponse.user.files);
         } else {

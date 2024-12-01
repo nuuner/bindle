@@ -42,7 +42,6 @@
     let file = $derived(getSelectedFile());
 
     $effect(() => {
-        console.log("setting newFileName", file?.fileName);
         newFileName = file?.fileName || "";
     });
 </script>

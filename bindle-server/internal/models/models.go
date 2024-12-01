@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
+// File Types
 type FileType string
 
 const (
@@ -18,6 +19,30 @@ const (
 	FileTypeUnknown FileType = "unknown"
 )
 
+// User related models
+type User struct {
+	gorm.Model
+	AccountId string         `json:"accountId" gorm:"uniqueIndex"`
+	Files     []UploadedFile `json:"files" gorm:"foreignKey:OwnerID"`
+	LastLogin time.Time      `json:"lastLogin"`
+}
+
+type UserDTO struct {
+	AccountId string         `json:"accountId"`
+	LastLogin time.Time      `json:"lastLogin"`
+	Files     []UploadedFile `json:"files"`
+}
+
+func (u *User) MarshalJSON() ([]byte, error) {
+	dto := UserDTO{
+		AccountId: u.AccountId,
+		LastLogin: u.LastLogin,
+		Files:     u.Files,
+	}
+	return json.Marshal(dto)
+}
+
+// File related models
 type UploadedFile struct {
 	gorm.Model
 	FileId   string   `json:"fileId" gorm:"uniqueIndex"`
@@ -44,7 +69,7 @@ type UploadedFileDTO struct {
 
 func (uf *UploadedFile) MarshalJSON() ([]byte, error) {
 	cfg := config.GetConfig()
-	return json.Marshal(UploadedFileDTO{
+	dto := UploadedFileDTO{
 		FileId:    uf.FileId,
 		FileName:  uf.FileName,
 		Size:      uf.Size,
@@ -53,16 +78,18 @@ func (uf *UploadedFile) MarshalJSON() ([]byte, error) {
 		URL:       cfg.FileHost + uf.FilePath,
 		Details:   uf.Details,
 		CreatedAt: uf.CreatedAt,
-	})
+	}
+	return json.Marshal(dto)
 }
 
-type User struct {
-	gorm.Model
-	AccountId string         `json:"accountId" gorm:"uniqueIndex"`
-	Files     []UploadedFile `json:"files" gorm:"foreignKey:OwnerID"`
-	LastLogin time.Time      `json:"lastLogin"`
+// Response models
+type MeResponse struct {
+	User             UserDTO `json:"user"`
+	UploadedBytes    int64   `json:"uploadedBytes"`
+	UploadLimitBytes int64   `json:"uploadLimitBytes"`
 }
 
+// Connection tracking models
 type AccountIpConnection struct {
 	gorm.Model
 	AccountID uint

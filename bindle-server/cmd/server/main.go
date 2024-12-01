@@ -2,9 +2,12 @@ package main
 
 import (
 	"log"
+	"os"
+	"time"
 
 	"github.com/gofiber/fiber/v2"
 	"github.com/gofiber/fiber/v2/middleware/cors"
+	"github.com/gofiber/fiber/v2/middleware/limiter"
 	"github.com/gofiber/fiber/v2/middleware/logger"
 	"github.com/joho/godotenv"
 	"github.com/nuuner/bindle-server/internal/config"
@@ -15,14 +18,17 @@ import (
 )
 
 func main() {
-	err := godotenv.Load()
-	if err != nil {
-		log.Fatal("failed to load environment variables:", err)
+	if os.Getenv("ENVIRONMENT") != "production" {
+		err := godotenv.Load()
+		if err != nil {
+			log.Fatal("failed to load environment variables:", err)
+		}
 	}
 
 	config := config.GetConfig()
 
 	var storageInstance storage.Storage
+	var err error
 
 	if config.S3Enabled {
 		storageInstance, err = storage.NewS3Storage(config)
@@ -54,7 +60,25 @@ func main() {
 	}))
 	app.Use(logger.New())
 
-	// Setup static file serving
+	// Global rate limiter for all routes
+	app.Use(limiter.New(limiter.Config{
+		Max:        100, // 100 requests
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP() // Rate limit by IP address
+		},
+	}))
+
+	// More aggressive rate limiting for sensitive operations
+	sensitiveRateLimiter := limiter.New(limiter.Config{
+		Max:        5, // 5 requests
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+	})
+
+	// Setup static file serving for uploaded files
 	app.Get("/files/:filePath", func(c *fiber.Ctx) error {
 		if !config.S3Enabled {
 			return c.SendFile(config.FilesystemPath + "/" + c.Params("filePath"))
@@ -63,20 +87,32 @@ func main() {
 		}
 	})
 
-	app.Use(middleware.AuthMiddleware(db))
+	// Serve static files from the React build
+	app.Static("/", "./static")
 
-	// Setup routes
-	app.Get("/api/me", func(c *fiber.Ctx) error {
+	// API routes
+	api := app.Group("/api")
+	api.Use(middleware.AuthMiddleware(db))
+
+	api.Get("/me", func(c *fiber.Ctx) error {
 		return handlers.GetMe(c, db)
 	})
-	app.Post("/api/file", func(c *fiber.Ctx) error {
+	api.Delete("/me", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.DeleteAccount(c, db, storageInstance)
+	})
+	api.Post("/file", sensitiveRateLimiter, func(c *fiber.Ctx) error {
 		return handlers.UploadFile(c, db, &config, storageInstance)
 	})
-	app.Delete("/api/file/:fileId", func(c *fiber.Ctx) error {
+	api.Delete("/file/:fileId", sensitiveRateLimiter, func(c *fiber.Ctx) error {
 		return handlers.DeleteFile(c, db, storageInstance, c.Params("fileId"))
 	})
-	app.Put("/api/file", func(c *fiber.Ctx) error {
+	api.Put("/file", sensitiveRateLimiter, func(c *fiber.Ctx) error {
 		return handlers.UpdateFile(c, db)
+	})
+
+	// Handle SPA routing - serve index.html for all non-API routes
+	app.Get("/*", func(c *fiber.Ctx) error {
+		return c.SendFile("./static/index.html")
 	})
 
 	// Start server

@@ -27,10 +27,11 @@
             <div class="flex items-center">
                 <strong class="mr-2 whitespace-nowrap">{getAccountId()}</strong>
                 <CopyButton
+                    class="ml-2"
                     text={getAccountId() ?? ""}
                     iconDescription="Copy account ID"
                 />
-                <OverflowMenu class="ml-2">
+                <OverflowMenu>
                     <OverflowMenuItem
                         text="Change account"
                         on:click={() =>

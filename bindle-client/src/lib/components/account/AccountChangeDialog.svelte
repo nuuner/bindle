@@ -6,14 +6,20 @@
 
     let changeAccountId = $state("");
     let changeAccountIdValid = $derived(changeAccountId.length === 36);
+    let errorMessage = $state<string | undefined>(undefined);
 
-    function handleChangeAccount() {
+    async function handleChangeAccount() {
         if (!changeAccountIdValid) {
             return;
         }
 
-        setAccountId(changeAccountId);
-        open = false;
+        try {
+            await setAccountId(changeAccountId);
+            open = false;
+        } catch (error) {
+            changeAccountId = "";
+            errorMessage = "Cannot login with this account ID";
+        }
     }
 </script>
 
@@ -31,8 +37,8 @@
             id="change-account-id"
             labelText="Account ID"
             bind:value={changeAccountId}
-            invalid={!changeAccountIdValid}
-            invalidText="Invalid account ID"
+            invalid={!changeAccountIdValid || !!errorMessage}
+            invalidText={errorMessage || "Invalid account ID"}
         />
     </div>
 </Modal>

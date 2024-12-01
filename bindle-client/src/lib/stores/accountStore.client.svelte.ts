@@ -3,6 +3,7 @@ import { browser } from '$app/environment';
 import { config } from "$lib/config";
 import { refreshMe } from "./fileStore.svelte";
 import type { Account } from "$lib/types";
+import { getMe } from "$lib/services/api.svelte";
 
 let accountId = $state<string | undefined>(undefined);
 let ACCOUNT_ID_KEY = config.apiHost + ".bindle.accountId";
@@ -20,14 +21,30 @@ if (browser) {
 }
 
 export const getAccountId = () => accountId;
-
-export const setAccountId = (id: string) => {
+export const setAccountId = async (id: string) => {
     const upperCaseId = id.toUpperCase();
+
+    // if accountId is already set, check if the new one is valid
+    // if not, do not change it
+    if (accountId) {
+        try {
+            await getMe(upperCaseId)
+        } catch (error) {
+            console.error(error);
+            throw error;
+        }
+    }
+
     if (browser) {
         localStorage.setItem(ACCOUNT_ID_KEY, upperCaseId);
     }
     accountId = upperCaseId;
     refreshMe();
+};
+
+export const newAccountId = () => {
+    const id = v4().toUpperCase();
+    setAccountId(id);
 };
 
 export const getAccount = () => account;

@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { onMount } from "svelte";
     import AccountChangeDialog from "$lib/components/account/AccountChangeDialog.svelte";
     import DeleteAccountDialog from "$lib/components/account/DeleteAccountDialog.svelte";
     import FileModal from "$lib/components/files/FileModal.svelte";
@@ -16,7 +17,7 @@
     let deleteAccountDialog = $state(false);
     let accountChangeDialog = $state(false);
 
-    $effect(() => {
+    onMount(() => {
         if (getAccountId()) {
             refreshMe();
         }

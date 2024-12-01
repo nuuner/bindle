@@ -69,11 +69,13 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB, cfg *config.Config, storage storage.S
 }
 
 func DeleteFile(c *fiber.Ctx, db *gorm.DB, storage storage.Storage, fileId string) error {
+	user := utils.GetUser(c)
 	uploadedFile := &models.UploadedFile{}
-	db.Where("file_id = ?", fileId).First(uploadedFile)
+	db.Where("file_id = ? AND owner_id = ?", fileId, user.ID).First(uploadedFile)
 	filePath := uploadedFile.FilePath
 
-	db.Delete(&models.UploadedFile{}, "file_id = ?", fileId)
+	db.Delete(&models.UploadedFile{}, "file_id = ? AND owner_id = ?", fileId, user.ID)
+	log.Printf("Deleted file %s for user %d", filePath, user.ID)
 
 	existingFile := db.Where("file_path = ?", filePath).First(&models.UploadedFile{})
 	if existingFile.Error != nil {
