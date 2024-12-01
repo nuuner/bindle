@@ -9,4 +9,9 @@ services:
       - bindle-client/.env
     environment:
       - ENVIRONMENT=production
+    volumes:
+      - bindle_data:/root/sqlite.db
     restart: unless-stopped
+
+volumes:
+  bindle_data:
