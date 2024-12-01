@@ -28,13 +28,34 @@ cd bindle
 ```
 
 2. Create a `.env` file in the `bindle-server` directory:
+
 ```env
-ENVIRONMENT=development
+# local filesystem
 FILESYSTEM_PATH=./files
-UPLOAD_LIMIT_BYTES=104857600  # 100MB
+
+UPLOAD_LIMIT_MB_PER_DAY=1000
 ```
 
-3. Start the development environment:
+or
+
+```env
+# S3
+S3_BUCKET=my-bucket
+S3_KEY_ID=001a2b3c4d5e6f7g8h9i0j
+S3_APP_KEY=K001AbCdEfGhIjKlMnOpQrStUvWxYz
+S3_REGION=us-east-1
+S3_ENDPOINT=https://s3.us-east-1.amazonaws.com
+
+UPLOAD_LIMIT_MB_PER_DAY=1000
+```
+
+3. Also create a `.env` file in the `bindle-client` directory:
+
+```env
+VITE_CONTACT_EMAIL=bindlesupport@proton.me
+```
+
+4. Start the development environment:
 ```bash
 docker compose up --build
 ```
