@@ -14,7 +14,7 @@ services:
     volumes:
       - type: volume
         source: bindle_data
-        target: /app/storage/bindle.db
+        target: /app/storage/
     restart: unless-stopped
 volumes:
   bindle_data:
