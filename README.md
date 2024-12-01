@@ -52,7 +52,7 @@ UPLOAD_LIMIT_MB_PER_DAY=1000
 3. Also create a `.env` file in the `bindle-client` directory:
 
 ```env
-VITE_CONTACT_EMAIL=bindlesupport@proton.me
+VITE_CONTACT_EMAIL=test@example.com
 ```
 
 4. Start the development environment:
