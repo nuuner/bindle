@@ -1,7 +1,5 @@
 FROM node:18 AS frontend-builder
 WORKDIR /app
-ARG VITE_CONTACT_EMAIL
-ENV VITE_CONTACT_EMAIL=${VITE_CONTACT_EMAIL}
 COPY bindle-client .
 RUN npm install
 RUN npm run build
