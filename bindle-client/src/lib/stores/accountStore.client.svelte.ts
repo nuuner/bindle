@@ -1,10 +1,13 @@
 import { v4 } from "uuid";
 import { browser } from '$app/environment';
 import { config } from "$lib/config";
-import { fetchFiles } from "./fileStore.svelte";
+import { refreshMe } from "./fileStore.svelte";
+import type { Account } from "$lib/types";
 
 let accountId = $state<string | undefined>(undefined);
 let ACCOUNT_ID_KEY = config.apiHost + ".bindle.accountId";
+
+let account = $state<Account | undefined>(undefined);
 
 if (browser) {
     const id = localStorage.getItem(ACCOUNT_ID_KEY);
@@ -24,5 +27,10 @@ export const setAccountId = (id: string) => {
         localStorage.setItem(ACCOUNT_ID_KEY, upperCaseId);
     }
     accountId = upperCaseId;
-    fetchFiles();
+    refreshMe();
+};
+
+export const getAccount = () => account;
+export const setAccount = (acc: Account) => {
+    account = acc;
 };

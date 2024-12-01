@@ -14,7 +14,6 @@
         accountChangeDialog = $bindable(),
     } = $props();
 
-
     function handleFileUpload(event: CustomEvent<readonly File[]>) {
         const file = event.detail[0];
         uploadFile(file);
@@ -34,12 +33,14 @@
                 <OverflowMenu class="ml-2">
                     <OverflowMenuItem
                         text="Change account"
-                        on:click={() => (accountChangeDialog = true)}
+                        on:click={() =>
+                            setTimeout(() => (accountChangeDialog = true))}
                     />
                     <OverflowMenuItem
                         text="Delete account"
                         danger
-                        on:click={() => (deleteAccountDialog = true)}
+                        on:click={() =>
+                            setTimeout(() => (deleteAccountDialog = true))}
                     />
                 </OverflowMenu>
             </div>

@@ -1,11 +1,18 @@
 import { config } from "$lib/config";
-import { getAccountId } from "$lib/stores/accountStore.client.svelte";
+import { getAccountId, setAccount } from "$lib/stores/accountStore.client.svelte";
 import { addFile, deleteFile } from "$lib/stores/fileStore.svelte";
-import type { User } from '$lib/types';
+import { addUploadingFile, removeUploadingFile } from '$lib/stores/uploadStore.svelte';
+import type { Account, UploadedFile } from '$lib/types';
 
-const getHeaders = () => ({
-    Authorization: getAccountId() ?? "",
-});
+const getHeaders = (isJson: boolean = true) => {
+    const headers: Record<string, string> = {
+        Authorization: getAccountId() ?? "",
+    };
+    if (isJson) {
+        headers['Content-Type'] = 'application/json';
+    }
+    return headers;
+};
 
 export const getFilesFromServer = async () => {
     const response = await fetch(`${config.apiHost}/files`, {
@@ -14,25 +21,42 @@ export const getFilesFromServer = async () => {
     return response.json();
 };
 
-export const getMe = async (): Promise<User> => {
+export const getMe = async (): Promise<Account> => {
     const response = await fetch(`${config.apiHost}/me`, {
         headers: getHeaders(),
+    });
+    const account = await response.json();
+    setAccount(account);
+    return account;
+};
+
+export const updateFile = async (file: UploadedFile) => {
+    const response = await fetch(`${config.apiHost}/file`, {
+        method: "PUT",
+        headers: getHeaders(true),
+        body: JSON.stringify(file),
     });
     return response.json();
 };
 
 export const uploadFile = async (file: File) => {
-    const formData = new FormData();
-    formData.append('file', file);
+    const uploadingId = addUploadingFile(file);
+    try {
+        const formData = new FormData();
+        formData.append("file", file);
 
-    const response = await fetch(`${config.apiHost}/file`, {
-        method: "POST",
-        headers: getHeaders(),
-        body: formData,
-    });
-    const uploadedFile = await response.json();
-    addFile(uploadedFile);
-    return uploadedFile;
+        const response = await fetch(`${config.apiHost}/file`, {
+            method: "POST",
+            headers: getHeaders(false),
+            body: formData,
+        });
+        const uploadedFile = await response.json();
+        addFile(uploadedFile);
+        return uploadedFile;
+    } finally {
+        removeUploadingFile(uploadingId);
+        getMe();
+    }
 };
 
 export const eraseFile = async (fileId: string) => {
@@ -41,5 +65,6 @@ export const eraseFile = async (fileId: string) => {
         headers: getHeaders(),
     });
     deleteFile(fileId);
+    getMe();
     return response.json();
 };

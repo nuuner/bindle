@@ -11,7 +11,7 @@ export const setFiles = (newFiles: UploadedFile[]) => {
 };
 
 export const addFile = (file: UploadedFile) => {
-    const existingFileIndex = files.findIndex(f => f.id === file.id);
+    const existingFileIndex = files.findIndex(f => f.fileId === file.fileId);
     if (existingFileIndex >= 0) {
         files[existingFileIndex] = file;
     } else {
@@ -20,14 +20,14 @@ export const addFile = (file: UploadedFile) => {
 };
 
 export const deleteFile = (fileId: string) => {
-    files = files.filter(f => f.id !== fileId);
+    files = files.filter(f => f.fileId !== fileId);
 };
 
-export const fetchFiles = async () => {
+export const refreshMe = async () => {
     try {
         const meResponse = await getMe();
-        if (meResponse.files) {
-            setFiles(meResponse.files);
+        if (meResponse.user.files) {
+            setFiles(meResponse.user.files);
         } else {
             setFiles([]);
         }

@@ -1,11 +1,7 @@
 <script lang="ts">
     import { bytesToMB } from "$lib/utils/fileUtils";
     import {
-        Grid,
-        Column,
-        Row,
         TextInput,
-        Button,
         UnorderedList,
         ListItem,
         CopyButton,
@@ -23,6 +19,8 @@
         setFileModalOpen,
         setSelectedFile,
     } from "$lib/stores/fileStore.svelte";
+    import { updateFile } from "$lib/services/api.svelte";
+    import { FileType } from "$lib/types";
 
     let newFileName = $state("");
     let fileNameChanged = $derived(newFileName !== getSelectedFile()?.fileName);
@@ -44,25 +42,41 @@
     let file = $derived(getSelectedFile());
 
     $effect(() => {
-        newFileName = file?.fileName ?? "";
+        console.log("setting newFileName", file?.fileName);
+        newFileName = file?.fileName || "";
     });
 </script>
 
 <ComposedModal
     open={getFileModalOpen()}
     on:close={() => setTimeout(() => setFileModalOpen(false), 0)}
+    on:submit={() => {
+        if (!file) return;
+
+        file.fileName = newFileName;
+        updateFile(file);
+    }}
 >
     <ModalHeader label="File controls" title={file?.fileName} />
     <ModalBody>
         <div class="flex gap-4 max-h-full">
-            <div class="w-1/2">
-                <FilePreview {file} />
-            </div>
-            <div class="w-1/2 min-w-0">
+            {#if file?.type != FileType.unknown}
+                <div class="w-1/2">
+                    <FilePreview {file} />
+                </div>
+            {/if}
+            <div
+                class="{file?.type != FileType.unknown
+                    ? 'w-1/2'
+                    : 'w-full'} min-w-0"
+            >
                 <div>
                     <TextInput
                         labelText="File name"
-                        bind:value={newFileName}
+                        value={newFileName}
+                        on:input={(e) => {
+                            newFileName = e.detail?.toString() || "";
+                        }}
                         invalid={fileNameInvalid}
                         invalidText="File name must end with the original file extension"
                     />
@@ -95,7 +109,6 @@
                             text={file?.url ?? ""}
                             iconDescription="Copy link"
                         />
-                        <Button kind="tertiary" size="small">Reset link</Button>
                     </div>
                 </div>
             </div>

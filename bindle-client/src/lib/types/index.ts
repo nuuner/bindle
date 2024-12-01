@@ -1,5 +1,5 @@
 export interface UploadedFile {
-    id: string;
+    fileId: string;
     fileName: string;
     /**
      * Size in bytes
@@ -9,6 +9,7 @@ export interface UploadedFile {
     mimeType: string;
     url: string;
     details?: string;
+    createdAt: Date;
 }
 
 export enum FileType {
@@ -22,4 +23,10 @@ export enum FileType {
 export interface User {
     id: string;
     files: UploadedFile[];
+}
+
+export interface Account {
+    user: User;
+    uploadedBytes: number;
+    uploadLimitBytes: number;
 }

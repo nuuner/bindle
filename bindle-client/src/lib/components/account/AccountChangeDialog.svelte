@@ -1,4 +1,5 @@
 <script lang="ts">
+    import { setAccountId } from "$lib/stores/accountStore.client.svelte";
     import { Modal, TextInput } from "carbon-components-svelte";
 
     let { open = $bindable(false) } = $props();
@@ -7,7 +8,11 @@
     let changeAccountIdValid = $derived(changeAccountId.length === 36);
 
     function handleChangeAccount() {
-        // TODO: Change account
+        if (!changeAccountIdValid) {
+            return;
+        }
+
+        setAccountId(changeAccountId);
         open = false;
     }
 </script>
@@ -26,6 +31,8 @@
             id="change-account-id"
             labelText="Account ID"
             bind:value={changeAccountId}
+            invalid={!changeAccountIdValid}
+            invalidText="Invalid account ID"
         />
     </div>
 </Modal>

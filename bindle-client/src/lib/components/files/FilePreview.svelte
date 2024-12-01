@@ -49,6 +49,8 @@
             class="max-w-full max-h-full object-contain"
             src={file?.url}
             controls
+            muted
+            autoplay
             loop
         >
             <track kind="captions" />
@@ -60,13 +62,18 @@
     {:else if file?.type === FileType.text}
         <div class="w-full">
             <div>
-                <TextArea class="w-full font-mono" value={file?.text} />
+                <TextArea
+                    class="w-full font-mono"
+                    value={file?.text}
+                    readonly
+                />
             </div>
             <div>
                 <CopyButton
                     text={file?.text}
                     iconDescription="Copy text"
                     class="mt-2"
+                    feedback="Copied!"
                 />
             </div>
         </div>

@@ -1,4 +1,6 @@
 {
+	"private": true,
+	"description": "File sharing platform client",
 	"name": "bindle-client",
 	"version": "0.0.1",
 	"type": "module",

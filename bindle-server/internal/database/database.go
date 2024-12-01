@@ -13,7 +13,7 @@ func InitDatabase() (*gorm.DB, error) {
 	}
 
 	// Migrate the schema
-	err = db.AutoMigrate(&models.UploadedFile{}, &models.User{})
+	err = db.AutoMigrate(&models.UploadedFile{}, &models.User{}, &models.AccountIpConnection{})
 	if err != nil {
 		return nil, err
 	}

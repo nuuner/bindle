@@ -1,15 +1,19 @@
 <script lang="ts">
-    import { Column, ProgressBar, Row } from "carbon-components-svelte";
-    import { getFiles } from "$lib/stores/fileStore.svelte";
+    import { ProgressBar } from "carbon-components-svelte";
+    import { getAccount } from "$lib/stores/accountStore.client.svelte";
     import { bytesToMB } from "$lib/utils/fileUtils";
-    let storageUsedInMB = $derived(
-        bytesToMB(getFiles().reduce((acc, file) => acc + file.size, 0)),
+
+    // Convert bytes to MB for display
+    let storageUsedInMB = $derived(bytesToMB(getAccount()?.uploadedBytes ?? 0));
+
+    let uploadLimitMB = $derived(
+        bytesToMB(getAccount()?.uploadLimitBytes ?? 0),
     );
 </script>
 
 <ProgressBar
-    labelText="Storage used"
+    labelText="Upload limit"
     value={storageUsedInMB}
-    max={1000}
-    helperText={`${storageUsedInMB}MB of 1GB`}
+    max={uploadLimitMB}
+    helperText={`${storageUsedInMB}MB of ${uploadLimitMB}MB per day`}
 />

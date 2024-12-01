@@ -8,11 +8,13 @@ import (
 	"os"
 	"strings"
 
+	"github.com/gabriel-vasile/mimetype"
+	"github.com/nuuner/bindle-server/internal/config"
 	"github.com/nuuner/bindle-server/internal/models"
 )
 
-func EnsureFileDirectory() error {
-	return os.MkdirAll("files", 0755)
+func EnsureFileDirectory(config config.Config) error {
+	return os.MkdirAll(config.FilesystemPath, 0755)
 }
 
 func GetFileType(mimeType string) models.FileType {
@@ -44,4 +46,9 @@ func GetFileHash(file *multipart.FileHeader) (string, error) {
 
 	hash.Write(fileBytes)
 	return hex.EncodeToString(hash.Sum(nil)), nil
+}
+
+func BytesToMimeType(fileBytes []byte) string {
+	mimeType := mimetype.Detect(fileBytes)
+	return mimeType.String()
 }

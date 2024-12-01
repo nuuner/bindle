@@ -1,33 +1,33 @@
 <script lang="ts">
-    import {
-        Button,
-        CopyButton,
-        Tooltip,
-        TooltipDefinition,
-    } from "carbon-components-svelte";
+    import { Button, Tooltip, Truncate } from "carbon-components-svelte";
     import {
         Document,
         Image,
         Video,
         Music,
-        Download,
         Copy,
         TrashCan,
+        DocumentBlank,
+        Checkmark,
+        Close,
     } from "carbon-icons-svelte";
-    import type { UploadedFile } from "$lib/types";
     import { FileType } from "$lib/types";
-    import { bytesToMB, downloadFile } from "$lib/utils/fileUtils";
+    import { bytesToMB } from "$lib/utils/fileUtils";
     import { copyToClipboard } from "$lib/utils/clipboard";
 
-    export let file: UploadedFile;
-    export let onClick: (file: UploadedFile) => void;
-    export let deleteFile: (fileId: string) => void;
+    let { file, onClick, deleteFile } = $props();
 
-    let open = false;
+    let mousePosition = $state({ x: 0, y: 0 });
+
+    let open = $state(false);
+
+    let fileDeleteConfirmation = $state(false);
 </script>
 
-<div class="grid gap-4 grid-cols-[30px_auto_10%_110px] hover:bg-zinc-900">
-    <div class="flex items-center pl-2">
+<div
+    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_110px_110px] hover:bg-zinc-900 w-full"
+>
+    <div class="flex items-center justify-center">
         {#if file.type === FileType.text}
             <Document size={20} />
         {:else if file.type === FileType.image}
@@ -36,74 +36,107 @@
             <Video size={20} />
         {:else if file.type === FileType.audio}
             <Music size={20} />
+        {:else}
+            <DocumentBlank size={20} />
         {/if}
     </div>
     <button
         type="button"
-        class="flex items-center text-left w-full bg-transparent border-0 cursor-pointer"
-        on:click={() => onClick(file)}
-        on:keydown={(e) => {
+        class="flex items-center text-left bg-transparent border-0 cursor-pointer"
+        onclick={() => onClick(file)}
+        onkeydown={(e) => {
             if (e.key === "Enter" || e.key === " ") {
                 onClick(file);
             }
         }}
-        on:mouseover={() => {
+        onmouseover={(e) => {
             open = true;
         }}
-        on:mouseleave={() => {
+        onmousemove={(e) => {
+            mousePosition = { x: e.clientX, y: e.clientY };
+        }}
+        onmouseleave={() => {
             open = false;
         }}
-        on:focus={() => {
+        onfocus={() => {
             open = true;
         }}
     >
-        {#if file.type === FileType.image}
-            <Tooltip
-                hideIcon
-                {open}
-                direction="left"
-                align="center"
-                class="flex justify-center"
+        {#if open && (file.type === FileType.image || file.type === FileType.video)}
+            <div
+                class="fixed top-0 left-0 pointer-events-none p-2 bg-zinc-900"
+                style:top={`${mousePosition.y + 20}px`}
+                style:left={`${mousePosition.x + 20}px`}
             >
-                {#if open}
+                {#if file.type === FileType.image}
                     <img
                         src={file.url}
-                        width={100}
-                        height={100}
+                        width={150}
+                        height={150}
                         alt="File preview"
                     />
+                {:else}
+                    <video
+                        src={file.url}
+                        width={150}
+                        height={150}
+                        muted
+                        autoplay
+                        loop
+                    ></video>
                 {/if}
-            </Tooltip>
+            </div>
         {/if}
-        {file.fileName}
+        <Truncate>
+            {file.fileName}
+        </Truncate>
     </button>
     <div class="text-sm text-right flex items-center">
         {bytesToMB(file.size).toFixed(2)} MB
     </div>
     <div class="flex items-center">
         <Button
-            icon={Download}
-            size="small"
-            kind="ghost"
-            iconDescription="Download file"
-            tooltipPosition="left"
-            on:click={() => downloadFile(file)}
-        />
-        <Button
             icon={Copy}
             size="small"
             kind="ghost"
             iconDescription="Copy link"
-            tooltipPosition="top"
-            on:click={() => copyToClipboard(file.url)}
+            tooltipPosition="left"
+            on:click={() => {
+                copyToClipboard(file.url);
+                (document.activeElement as HTMLElement)?.blur();
+            }}
         />
-        <Button
-            icon={TrashCan}
-            size="small"
-            kind="ghost"
-            iconDescription="Delete file"
-            tooltipPosition="right"
-            on:click={() => deleteFile(file.id)}
-        />
+        {#if !fileDeleteConfirmation}
+            <Button
+                icon={TrashCan}
+                size="small"
+                kind="ghost"
+                iconDescription="Delete file"
+                tooltipPosition="right"
+                on:click={() => {
+                    fileDeleteConfirmation = true;
+                }}
+            />
+        {:else}
+            <Button
+                icon={Checkmark}
+                size="small"
+                kind="ghost"
+                iconDescription="Confirm delete"
+                on:click={() => {
+                    deleteFile(file);
+                    fileDeleteConfirmation = false;
+                }}
+            />
+            <Button
+                icon={Close}
+                size="small"
+                kind="ghost"
+                iconDescription="Cancel delete"
+                on:click={() => {
+                    fileDeleteConfirmation = false;
+                }}
+            />
+        {/if}
     </div>
 </div>

@@ -1,5 +1,67 @@
 package config
 
-const (
-	FileHost = "http://localhost:3000/files/"
+import (
+	"log"
+	"os"
+	"strconv"
 )
+
+type Config struct {
+	FileHost           string
+	ClientOrigin       string
+	RequestSizeLimitMB int64
+	// S3
+	S3Enabled  bool
+	S3KeyId    string
+	S3AppKey   string
+	S3Bucket   string
+	S3Region   string
+	S3Endpoint string
+	// Filesystem
+	FilesystemPath string
+	// Account
+	AccountExpirationDays int
+	// Upload limits
+	UploadLimitMBPerDay int64
+}
+
+var cfg Config
+
+func GetConfig() Config {
+	if cfg.FileHost != "" {
+		return cfg
+	}
+
+	requestSizeLimitMB, err := strconv.ParseInt(os.Getenv("REQUEST_SIZE_LIMIT_MB"), 10, 64)
+	if err != nil {
+		log.Fatal("failed to parse REQUEST_SIZE_LIMIT_MB:", err)
+	}
+
+	accountExpirationDays, err := strconv.Atoi(os.Getenv("ACCOUNT_EXPIRATION_DAYS"))
+	if err != nil {
+		log.Fatal("failed to parse ACCOUNT_EXPIRATION_DAYS:", err)
+	}
+
+	uploadLimitMBPerDay, err := strconv.ParseInt(os.Getenv("UPLOAD_LIMIT_MB_PER_DAY"), 10, 64)
+	if err != nil {
+		log.Println("No UPLOAD_LIMIT_MB_PER_DAY environment variable found, using default value of 1000MB")
+		uploadLimitMBPerDay = 1000
+	}
+
+	cfg = Config{
+		FileHost:              os.Getenv("FILE_HOST"),
+		ClientOrigin:          os.Getenv("CLIENT_ORIGIN"),
+		RequestSizeLimitMB:    requestSizeLimitMB,
+		S3Enabled:             os.Getenv("S3_BUCKET") != "",
+		S3KeyId:               os.Getenv("S3_KEY_ID"),
+		S3AppKey:              os.Getenv("S3_APP_KEY"),
+		S3Bucket:              os.Getenv("S3_BUCKET"),
+		S3Region:              os.Getenv("S3_REGION"),
+		S3Endpoint:            os.Getenv("S3_ENDPOINT"),
+		FilesystemPath:        os.Getenv("FILESYSTEM_PATH"),
+		AccountExpirationDays: accountExpirationDays,
+		UploadLimitMBPerDay:   uploadLimitMBPerDay,
+	}
+
+	return cfg
+}
