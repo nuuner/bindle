@@ -1,13 +1,18 @@
 package database
 
 import (
+	"os"
+
 	"github.com/nuuner/bindle-server/internal/models"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
 
 func InitDatabase() (*gorm.DB, error) {
-	db, err := gorm.Open(sqlite.Open("bindle.db"), &gorm.Config{})
+	// ensure storage directory exists
+	os.MkdirAll("storage", os.ModePerm)
+
+	db, err := gorm.Open(sqlite.Open("./storage/bindle.db"), &gorm.Config{})
 	if err != nil {
 		return nil, err
 	}
