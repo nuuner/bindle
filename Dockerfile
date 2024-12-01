@@ -1,4 +1,4 @@
-FROM node:18 AS frontend-builder
+FROM node:latest AS frontend-builder
 WORKDIR /app
 COPY bindle-client .
 RUN npm install
