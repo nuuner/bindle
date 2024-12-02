@@ -80,6 +80,9 @@ func main() {
 
 	// Setup static file serving for uploaded files
 	app.Get("/files/:filePath", func(c *fiber.Ctx) error {
+		// Disable scripts on possible html files
+		c.Set("Content-Security-Policy", "script-src 'none'")
+
 		if !config.S3Enabled {
 			return c.SendFile(config.FilesystemPath + "/" + c.Params("filePath"))
 		} else {
