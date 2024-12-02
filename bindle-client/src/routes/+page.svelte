@@ -13,6 +13,7 @@
     import AccountHeader from "$lib/components/account/AccountHeader.svelte";
     import FileDropArea from "$lib/components/files/FileDropArea.svelte";
     import { getUploadingFiles } from "$lib/stores/uploadStore.svelte";
+    import DashboardError from "$lib/components/errors/DashboardError.svelte";
 
     let deleteAccountDialog = $state(false);
     let accountChangeDialog = $state(false);
@@ -26,13 +27,12 @@
 
 <div class="flex flex-col gap-4">
     <AccountHeader bind:deleteAccountDialog bind:accountChangeDialog />
-    {#if getAccountId()}
-        {#if getAccount()?.uploadedBytes}
-            <StorageIndicator />
-        {/if}
-        {#if getFiles().length > 0 || getUploadingFiles().length > 0}
-            <FileList />
-        {/if}
+    {#if getAccountId() && getAccount()?.uploadedBytes}
+        <StorageIndicator />
+    {/if}
+    <DashboardError />
+    {#if getAccountId() && (getFiles().length > 0 || getUploadingFiles().length > 0)}
+        <FileList />
     {/if}
 </div>
 

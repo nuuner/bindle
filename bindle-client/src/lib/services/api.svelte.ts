@@ -1,5 +1,6 @@
 import { config } from "$lib/config";
-import { getAccountId, newAccountId, setAccount } from "$lib/stores/accountStore.client.svelte";
+import { getAccount, getAccountId, newAccountId, setAccount } from "$lib/stores/accountStore.client.svelte";
+import { setError } from "$lib/stores/errorStore.svelte";
 import { addFile, deleteFile } from "$lib/stores/fileStore.svelte";
 import { addUploadingFile, removeUploadingFile } from '$lib/stores/uploadStore.svelte';
 import type { Account, UploadedFile } from '$lib/types';
@@ -62,6 +63,12 @@ export const updateFile = async (file: UploadedFile) => {
 };
 
 export const uploadFile = async (file: File) => {
+    const account = getAccount();
+    if (account && file.size > account.maxFileSizeBytes) {
+        setError(`File is too large. Max file size is ${Math.round(account.maxFileSizeBytes / 1000 / 1000)}MB.`);
+        return;
+    }
+
     const uploadingId = addUploadingFile(file);
     try {
         const formData = new FormData();

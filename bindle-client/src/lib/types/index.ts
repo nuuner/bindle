@@ -29,4 +29,5 @@ export interface Account {
     user: User;
     uploadedBytes: number;
     uploadLimitBytes: number;
+    maxFileSizeBytes: number;
 }

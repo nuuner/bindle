@@ -87,6 +87,7 @@ type MeResponse struct {
 	User             UserDTO `json:"user"`
 	UploadedBytes    int64   `json:"uploadedBytes"`
 	UploadLimitBytes int64   `json:"uploadLimitBytes"`
+	MaxFileSizeBytes int64   `json:"maxFileSizeBytes"`
 }
 
 // Connection tracking models
