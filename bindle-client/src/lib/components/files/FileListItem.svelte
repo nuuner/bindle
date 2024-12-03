@@ -25,7 +25,7 @@
 </script>
 
 <div
-    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_110px] hover:bg-zinc-900 w-full"
+    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_100px] hover:bg-zinc-900 w-full"
 >
     <div class="flex items-center justify-center">
         {#if file.type === FileType.text}
@@ -64,7 +64,7 @@
     >
         {#if open && (file.type === FileType.image || file.type === FileType.video)}
             <div
-                class="fixed top-0 left-0 pointer-events-none p-2 bg-zinc-900"
+                class="fixed top-0 left-0 pointer-events-none p-2 bg-zinc-900 z-50"
                 style:top={`${mousePosition.y + 20}px`}
                 style:left={`${mousePosition.x + 20}px`}
             >

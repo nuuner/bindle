@@ -20,43 +20,40 @@
     }
 </script>
 
-<div class="flex justify-between items-center w-full flex-wrap">
-    <div>
-        <div class="mb-2">Current account ID</div>
-        {#if getAccountId()}
-            <div class="gap-2 flex items-center flex-wrap mb-2">
-                <strong class="mr-2 whitespace-nowrap">{getAccountId()}</strong>
-                <div class="flex items-center flex-row">
-                    <CopyButton
-                        text={getAccountId() ?? ""}
-                        iconDescription="Copy account ID"
-                    />
-                    <OverflowMenu>
-                        <OverflowMenuItem
-                            text="Change account"
-                            on:click={() =>
-                                setTimeout(() => (accountChangeDialog = true))}
-                        />
-                        <OverflowMenuItem
-                            text="Delete account"
-                            danger
-                            on:click={() =>
-                                setTimeout(() => (deleteAccountDialog = true))}
-                        />
-                    </OverflowMenu>
-                </div>
-            </div>
-        {:else}
-            <Loading class="mt-2" small withOverlay={false} />
-        {/if}
-    </div>
+<div class="w-full">
+    <div class="mb-2">Current account ID</div>
     {#if getAccountId()}
-        <div>
-            <FileUploaderButton
-                labelText="Upload file"
-                disableLabelChanges
-                on:change={handleFileUpload}
-            />
+        <strong class="whitespace-nowrap">{getAccountId()}</strong>
+        <div class="mt-3 flex justify-between">
+            <div class="flex items-center flex-row">
+                <CopyButton
+                    text={getAccountId() ?? ""}
+                    iconDescription="Copy account ID"
+                />
+                <OverflowMenu>
+                    <OverflowMenuItem
+                        text="Change account"
+                        on:click={() =>
+                            setTimeout(() => (accountChangeDialog = true))}
+                    />
+                    <OverflowMenuItem
+                        text="Delete account"
+                        danger
+                        on:click={() =>
+                            setTimeout(() => (deleteAccountDialog = true))}
+                    />
+                </OverflowMenu>
+            </div>
+            <div>
+                <FileUploaderButton
+                    size="field"
+                    labelText="Upload file"
+                    disableLabelChanges
+                    on:change={handleFileUpload}
+                />
+            </div>
         </div>
+    {:else}
+        <Loading class="mt-2" small withOverlay={false} />
     {/if}
 </div>
