@@ -25,7 +25,7 @@ func UploadFile(c *fiber.Ctx, db *gorm.DB, cfg *config.Config, storage storage.S
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "No Content-Type header"})
 	}
 
-	if limiter.ShouldThrottle(c, db, cfg) {
+	if limiter.ShouldThrottle(c, db, cfg, file.Size) {
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Upload limit exceeded"})
 	}
 

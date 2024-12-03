@@ -103,13 +103,13 @@ func main() {
 	api.Delete("/me", sensitiveRateLimiter, func(c *fiber.Ctx) error {
 		return handlers.DeleteAccount(c, db, storageInstance)
 	})
-	api.Post("/file", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+	api.Post("/file", func(c *fiber.Ctx) error {
 		return handlers.UploadFile(c, db, &config, storageInstance)
 	})
-	api.Delete("/file/:fileId", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+	api.Delete("/file/:fileId", func(c *fiber.Ctx) error {
 		return handlers.DeleteFile(c, db, storageInstance, c.Params("fileId"))
 	})
-	api.Put("/file", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+	api.Put("/file", func(c *fiber.Ctx) error {
 		return handlers.UpdateFile(c, db)
 	})
 

@@ -66,7 +66,7 @@ func getAllConnectedAccountsAndIPs(db *gorm.DB, ipAddress string) ([]uint, []str
 	return accountIDs, ips, nil
 }
 
-func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config) bool {
+func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config, fileSize int64) bool {
 	ipAddress := c.IP()
 	oneDayAgo := time.Now().Add(-24 * time.Hour)
 
@@ -93,7 +93,7 @@ func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config) bool {
 	}
 
 	// Check if total size exceeds the limit
-	return totalSize >= int64(config.UploadLimitMBPerDay*1000*1000)
+	return totalSize+fileSize >= int64(config.UploadLimitMBPerDay*1000*1000)
 }
 
 func GetUploadedSizeForIP(db *gorm.DB, ipAddress string) (int64, error) {

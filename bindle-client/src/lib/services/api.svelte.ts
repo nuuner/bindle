@@ -69,6 +69,11 @@ export const uploadFile = async (file: File) => {
         return;
     }
 
+    if (account && account.uploadLimitBytes && account.uploadLimitBytes < (file.size + account.uploadedBytes)) {
+        setError(`Upload limit exceeded. You may only upload up to ${Math.round(account.uploadLimitBytes / 1000 / 1000)}MB per day. Wait or delete some files.`);
+        return;
+    }
+
     const uploadingId = addUploadingFile(file);
     try {
         const formData = new FormData();
