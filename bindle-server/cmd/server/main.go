@@ -83,11 +83,7 @@ func main() {
 		// Disable scripts on possible html files
 		c.Set("Content-Security-Policy", "script-src 'none'")
 
-		if !config.S3Enabled {
-			return c.SendFile(config.FilesystemPath + "/" + c.Params("filePath"))
-		} else {
-			return handlers.GetFile(c, storageInstance, c.Params("filePath"))
-		}
+		return handlers.GetFile(c, storageInstance, c.Params("filePath"))
 	})
 
 	// Serve static files from the React build

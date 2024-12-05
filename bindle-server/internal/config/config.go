@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"log"
 	"os"
 	"strconv"
@@ -23,6 +24,8 @@ type Config struct {
 	AccountExpirationDays int
 	// Upload limits
 	UploadLimitMBPerDay int64
+	// Encryption
+	EncryptionKey []byte
 }
 
 var cfg Config
@@ -48,6 +51,18 @@ func GetConfig() Config {
 		uploadLimitMBPerDay = 1000
 	}
 
+	encryptionKey := os.Getenv("ENCRYPTION_KEY")
+	if encryptionKey == "" {
+		log.Fatal("ENCRYPTION_KEY environment variable is not set")
+	}
+	encryptionKeyBytes, err := base64.StdEncoding.DecodeString(encryptionKey)
+	if err != nil {
+		log.Fatal("ENCRYPTION_KEY is not valid base64:", err)
+	}
+	if len(encryptionKeyBytes) != 32 {
+		log.Fatal("ENCRYPTION_KEY must be 32 bytes long")
+	}
+
 	cfg = Config{
 		FileHost:              os.Getenv("FILE_HOST"),
 		ClientOrigin:          os.Getenv("CLIENT_ORIGIN"),
@@ -61,6 +76,7 @@ func GetConfig() Config {
 		FilesystemPath:        os.Getenv("FILESYSTEM_PATH"),
 		AccountExpirationDays: accountExpirationDays,
 		UploadLimitMBPerDay:   uploadLimitMBPerDay,
+		EncryptionKey:         encryptionKeyBytes,
 	}
 
 	return cfg

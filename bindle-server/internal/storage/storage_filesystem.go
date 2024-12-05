@@ -38,9 +38,14 @@ func (s *FilesystemStorage) SaveFile(file *multipart.FileHeader, filePath string
 		return "", err
 	}
 
+	encryptedBytes, err := utils.EncryptFile(&s.config, fileBytes)
+	if err != nil {
+		return "", err
+	}
+
 	fullPath := s.config.FilesystemPath + "/" + filePath
 	log.Println("saving file to", fullPath)
-	if err := os.WriteFile(fullPath, fileBytes, 0644); err != nil {
+	if err := os.WriteFile(fullPath, encryptedBytes, 0644); err != nil {
 		return "", err
 	}
 
@@ -61,7 +66,12 @@ func (s *FilesystemStorage) GetFile(filePath string) ([]byte, error) {
 		return nil, err
 	}
 
-	return fileBytes, nil
+	decryptedBytes, err := utils.DecryptFile(&s.config, fileBytes)
+	if err != nil {
+		return nil, err
+	}
+
+	return decryptedBytes, nil
 }
 
 func (s *FilesystemStorage) DeleteFile(filePath string) error {

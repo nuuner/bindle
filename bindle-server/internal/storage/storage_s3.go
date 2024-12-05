@@ -12,11 +12,13 @@ import (
 	"github.com/aws/aws-sdk-go-v2/credentials"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	localconfig "github.com/nuuner/bindle-server/internal/config"
+	"github.com/nuuner/bindle-server/pkg/utils"
 )
 
 type S3Storage struct {
 	client *s3.Client
 	bucket string
+	config localconfig.Config
 }
 
 func NewS3Storage(cfg localconfig.Config) (*S3Storage, error) {
@@ -45,6 +47,7 @@ func NewS3Storage(cfg localconfig.Config) (*S3Storage, error) {
 	return &S3Storage{
 		client: client,
 		bucket: cfg.S3Bucket,
+		config: cfg,
 	}, nil
 }
 
@@ -60,10 +63,15 @@ func (s *S3Storage) SaveFile(file *multipart.FileHeader, filePath string) (strin
 		return "", fmt.Errorf("failed to read file: %w", err)
 	}
 
+	encryptedFile, err := utils.EncryptFile(&s.config, content)
+	if err != nil {
+		return "", fmt.Errorf("failed to encrypt file: %w", err)
+	}
+
 	_, err = s.client.PutObject(context.TODO(), &s3.PutObjectInput{
 		Bucket: aws.String(s.bucket),
 		Key:    aws.String(filePath),
-		Body:   bytes.NewReader(content),
+		Body:   bytes.NewReader(encryptedFile),
 	})
 	if err != nil {
 		return "", fmt.Errorf("failed to upload file to S3: %w", err)
@@ -82,12 +90,17 @@ func (s *S3Storage) GetFile(filePath string) ([]byte, error) {
 	}
 	defer result.Body.Close()
 
-	content, err := io.ReadAll(result.Body)
+	encryptedFile, err := io.ReadAll(result.Body)
 	if err != nil {
 		return nil, fmt.Errorf("failed to read file content: %w", err)
 	}
 
-	return content, nil
+	decryptedFile, err := utils.DecryptFile(&s.config, encryptedFile)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decrypt file: %w", err)
+	}
+
+	return decryptedFile, nil
 }
 
 func (s *S3Storage) DeleteFile(filePath string) error {
