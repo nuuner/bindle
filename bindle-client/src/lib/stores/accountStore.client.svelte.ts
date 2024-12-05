@@ -1,53 +1,31 @@
-import { v4 } from "uuid";
 import { browser } from '$app/environment';
-import { config } from "$lib/config";
-import { refreshMe } from "./fileStore.svelte";
 import type { Account } from "$lib/types";
-import { getMe } from "$lib/services/api.svelte";
+
+const ACCOUNT_ID_KEY = "bindle.accountId";
 
 let accountId = $state<string | undefined>(undefined);
-let ACCOUNT_ID_KEY = config.apiHost + ".bindle.accountId";
-
 let account = $state<Account | undefined>(undefined);
 
 if (browser) {
     const id = localStorage.getItem(ACCOUNT_ID_KEY);
     if (id) {
-        accountId = id.toUpperCase();
-    } else {
-        accountId = v4().toUpperCase();
-        localStorage.setItem(ACCOUNT_ID_KEY, accountId);
+        accountId = id;
     }
 }
 
 export const getAccountId = () => accountId;
-export const setAccountId = async (id: string) => {
-    const upperCaseId = id.toUpperCase();
 
-    // if accountId is already set, check if the new one is valid
-    // if not, do not change it
-    if (accountId) {
-        try {
-            await getMe(upperCaseId)
-        } catch (error) {
-            console.error(error);
-            throw error;
-        }
+export const setAccountId = (id: string | undefined) => {
+    if (browser && id) {
+        localStorage.setItem(ACCOUNT_ID_KEY, id);
+    } else if (browser) {
+        localStorage.removeItem(ACCOUNT_ID_KEY);
     }
-
-    if (browser) {
-        localStorage.setItem(ACCOUNT_ID_KEY, upperCaseId);
-    }
-    accountId = upperCaseId;
-    refreshMe();
-};
-
-export const newAccountId = () => {
-    const id = v4().toUpperCase();
-    setAccountId(id);
+    accountId = id;
 };
 
 export const getAccount = () => account;
+
 export const setAccount = (acc: Account) => {
     account = acc;
 };

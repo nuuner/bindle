@@ -1,6 +1,4 @@
 import { type UploadedFile } from '$lib/types';
-import { getMe } from '$lib/services/api.svelte';
-import { newAccountId, setAccount } from './accountStore.client.svelte';
 
 let files = $state<UploadedFile[]>([]);
 let selectedFile = $state<UploadedFile | null>(null);
@@ -22,21 +20,6 @@ export const addFile = (file: UploadedFile) => {
 
 export const deleteFile = (fileId: string) => {
     files = files.filter(f => f.fileId !== fileId);
-};
-
-export const refreshMe = async () => {
-    try {
-        const meResponse = await getMe();
-
-        if (meResponse.user.files) {
-            setFiles(meResponse.user.files);
-        } else {
-            setFiles([]);
-        }
-    } catch (error) {
-        console.error('Error fetching files:', error);
-        setFiles([]);
-    }
 };
 
 export const getFileModalOpen = () => fileModalOpen;

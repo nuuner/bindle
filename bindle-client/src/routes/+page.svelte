@@ -5,7 +5,7 @@
     import FileModal from "$lib/components/files/FileModal.svelte";
     import FileList from "$lib/components/files/FileList.svelte";
     import StorageIndicator from "$lib/components/files/StorageIndicator.svelte";
-    import { refreshMe, getFiles } from "$lib/stores/fileStore.svelte";
+    import { getFiles } from "$lib/stores/fileStore.svelte";
     import {
         getAccount,
         getAccountId,
@@ -14,14 +14,13 @@
     import FileDropArea from "$lib/components/files/FileDropArea.svelte";
     import { getUploadingFiles } from "$lib/stores/uploadStore.svelte";
     import DashboardError from "$lib/components/errors/DashboardError.svelte";
+    import { accountService } from "$lib/services/api.svelte";
 
     let deleteAccountDialog = $state(false);
     let accountChangeDialog = $state(false);
 
     onMount(() => {
-        if (getAccountId()) {
-            refreshMe();
-        }
+        accountService.initializeAccount();
     });
 </script>
 
@@ -31,7 +30,7 @@
         <StorageIndicator />
     {/if}
     <DashboardError />
-    {#if getAccountId() && (getFiles().length > 0 || getUploadingFiles().length > 0)}
+    {#if getAccountId() && (getFiles()?.length > 0 || getUploadingFiles()?.length > 0)}
         <FileList />
     {/if}
 </div>

@@ -19,7 +19,7 @@
         setFileModalOpen,
         setSelectedFile,
     } from "$lib/stores/fileStore.svelte";
-    import { updateFile } from "$lib/services/api.svelte";
+    import { fileService } from "$lib/services/api.svelte";
     import { FileType } from "$lib/types";
 
     let newFileName = $state("");
@@ -53,7 +53,7 @@
         if (!file) return;
 
         file.fileName = newFileName;
-        updateFile(file);
+        fileService.updateFile(file);
     }}
 >
     <ModalHeader label="File controls" title={file?.fileName} />

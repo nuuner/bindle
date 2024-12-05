@@ -13,9 +13,8 @@ func AuthMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
 		if authHeader == "" {
-			return c.Status(fiber.StatusUnauthorized).JSON(fiber.Map{
-				"error": "Missing Authorization header",
-			})
+			// The request does not have a user, return a new id
+			authHeader = utils.GenerateAccountId()
 		}
 
 		if !utils.AccountIdIsValid(authHeader) {

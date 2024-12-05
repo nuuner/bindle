@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { uploadFile } from "$lib/services/api.svelte";
+    import { fileService } from "$lib/services/api.svelte";
 
     let isDragging = false;
     let dragCounter = 0;
@@ -32,7 +32,7 @@
         const files = e.dataTransfer?.files;
         if (files && files.length > 0) {
             const file = files[0];
-            uploadFile(file);
+            fileService.uploadFile(file);
         }
     }
 </script>

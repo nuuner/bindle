@@ -8,7 +8,7 @@
     } from "$lib/stores/fileStore.svelte";
     import { getUploadingFiles } from "$lib/stores/uploadStore.svelte";
     import type { UploadedFile } from "$lib/types";
-    import { eraseFile } from "$lib/services/api.svelte";
+    import { fileService } from "$lib/services/api.svelte";
 
     let onFileClick = (file: UploadedFile) => {
         setSelectedFile(file);
@@ -17,7 +17,7 @@
 
     let deleteFile = (file: UploadedFile) => {
         console.log("deleting file", file.fileId);
-        eraseFile(file.fileId);
+        fileService.deleteFile(file.fileId);
     };
 
     let files = $derived(

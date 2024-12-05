@@ -21,7 +21,7 @@ export enum FileType {
 }
 
 export interface User {
-    id: string;
+    accountId: string;
     files: UploadedFile[];
 }
 

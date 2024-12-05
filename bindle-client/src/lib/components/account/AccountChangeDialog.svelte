@@ -1,11 +1,12 @@
 <script lang="ts">
+    import { accountService } from "$lib/services/api.svelte";
     import { setAccountId } from "$lib/stores/accountStore.client.svelte";
     import { Modal, TextInput } from "carbon-components-svelte";
 
     let { open = $bindable(false) } = $props();
 
     let changeAccountId = $state("");
-    let changeAccountIdValid = $derived(changeAccountId.length === 36);
+    let changeAccountIdValid = $derived(new RegExp(/^[a-zA-Z0-9]{22}$/).test(changeAccountId));
     let errorMessage = $state<string | undefined>(undefined);
 
     async function handleChangeAccount() {
@@ -14,7 +15,8 @@
         }
 
         try {
-            await setAccountId(changeAccountId);
+            await accountService.getMe(changeAccountId);
+            setAccountId(changeAccountId);
             open = false;
         } catch (error) {
             changeAccountId = "";

@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { uploadFile } from "$lib/services/api.svelte";
+    import { fileService } from "$lib/services/api.svelte";
     import { getAccountId } from "$lib/stores/accountStore.client.svelte";
     import {
         CopyButton,
@@ -16,7 +16,7 @@
 
     function handleFileUpload(event: CustomEvent<readonly File[]>) {
         const file = event.detail[0];
-        uploadFile(file);
+        fileService.uploadFile(file);
     }
 </script>
 

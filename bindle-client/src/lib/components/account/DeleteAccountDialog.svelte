@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { deleteAccount } from "$lib/services/api.svelte";
+    import { accountService } from "$lib/services/api.svelte";
     import { Modal } from "carbon-components-svelte";
 
     let { open = $bindable(false) } = $props();
@@ -8,7 +8,7 @@
 
     async function handleDeleteAccount() {
         loading = true;
-        await deleteAccount();
+        await accountService.deleteAccount();
         open = false;
         loading = false;
     }
