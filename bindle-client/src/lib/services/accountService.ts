@@ -55,12 +55,25 @@ export const accountService = {
     },
 
     async initializeAccount() {
-        const idFromLocalStorage = localStorage.getItem("bindle.accountId");
-        if (idFromLocalStorage) {
-            setAccountId(idFromLocalStorage);
-            await this.getMe(idFromLocalStorage);
+        // Check for account ID in URL params first
+        const urlParams = new URLSearchParams(window.location.search);
+        const accountIdFromUrl = urlParams.get('accountId');
+        
+        if (accountIdFromUrl) {
+            // Use account ID from URL and save it
+            setAccountId(accountIdFromUrl);
+            await this.getMe(accountIdFromUrl);
+            // Clean up URL after processing
+            window.history.replaceState({}, document.title, window.location.pathname);
         } else {
-            await this.getMeWithoutAccountId();
+            // Fall back to localStorage
+            const idFromLocalStorage = localStorage.getItem("bindle.accountId");
+            if (idFromLocalStorage) {
+                setAccountId(idFromLocalStorage);
+                await this.getMe(idFromLocalStorage);
+            } else {
+                await this.getMeWithoutAccountId();
+            }
         }
     }
 }; 
