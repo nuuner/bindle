@@ -1,5 +1,5 @@
 <script lang="ts">
-    import { onMount } from "svelte";
+    import { onMount, onDestroy } from "svelte";
     import AccountChangeDialog from "$lib/components/account/AccountChangeDialog.svelte";
     import DeleteAccountDialog from "$lib/components/account/DeleteAccountDialog.svelte";
     import FileModal from "$lib/components/files/FileModal.svelte";
@@ -15,12 +15,18 @@
     import { getUploadingFiles } from "$lib/stores/uploadStore.svelte";
     import DashboardError from "$lib/components/errors/DashboardError.svelte";
     import { accountService } from "$lib/services/api.svelte";
+    import { syncService } from "$lib/services/syncService";
 
     let deleteAccountDialog = $state(false);
     let accountChangeDialog = $state(false);
 
-    onMount(() => {
-        accountService.initializeAccount();
+    onMount(async () => {
+        await accountService.initializeAccount();
+        syncService.startPolling();
+    });
+
+    onDestroy(() => {
+        syncService.cleanup();
     });
 </script>
 
