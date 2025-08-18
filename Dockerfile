@@ -1,10 +1,14 @@
-FROM node:latest AS frontend-builder
+FROM node:20-alpine AS frontend-builder
 WORKDIR /app
 COPY bindle-client .
 ARG VITE_CONTACT_EMAIL
 ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL
-RUN npm install
-RUN npm run build
+# Clean npm cache and install with better compatibility
+RUN npm cache clean --force && \
+    rm -rf node_modules package-lock.json && \
+    npm install --legacy-peer-deps && \
+    npm rebuild && \
+    npm run build
 
 FROM golang:alpine AS backend-builder
 WORKDIR /app
