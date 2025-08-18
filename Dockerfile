@@ -1,14 +1,12 @@
 FROM node:20-alpine AS frontend-builder
 WORKDIR /app
+COPY bindle-client/package*.json ./
+# Install all dependencies including devDependencies needed for build
+RUN npm ci || npm install
 COPY bindle-client .
 ARG VITE_CONTACT_EMAIL
 ENV VITE_CONTACT_EMAIL=$VITE_CONTACT_EMAIL
-# Clean npm cache and install with better compatibility
-RUN npm cache clean --force && \
-    rm -rf node_modules package-lock.json && \
-    npm install --legacy-peer-deps && \
-    npm rebuild && \
-    npm run build
+RUN npm run build
 
 FROM golang:alpine AS backend-builder
 WORKDIR /app
