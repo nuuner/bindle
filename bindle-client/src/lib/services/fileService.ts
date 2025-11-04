@@ -1,10 +1,11 @@
 import { config } from "$lib/config";
 import { getAccount, getAccountId } from "$lib/stores/accountStore.client.svelte";
 import { addFile, deleteFile as removeFileFromStore } from "$lib/stores/fileStore.svelte";
-import { addUploadingFile, removeUploadingFile } from '$lib/stores/uploadStore.svelte';
+import { addUploadingFile, removeUploadingFile, updateUploadingFile } from '$lib/stores/uploadStore.svelte';
 import { setError } from "$lib/stores/errorStore.svelte";
 import type { UploadedFile } from '$lib/types';
 import { accountService } from "./accountService";
+import { uploadFileChunked } from "./chunkUploadService";
 
 export const getHeaders = (isJson: boolean = true, accountId?: string) => {
     const headers: Record<string, string> = {};
@@ -51,17 +52,20 @@ export const fileService = {
 
         const uploadingId = addUploadingFile(file);
         try {
-            const formData = new FormData();
-            formData.append("file", file);
+            // Use chunked upload for all files
+            const result = await uploadFileChunked(file, uploadingId);
 
-            const response = await fetch(`${config.apiHost}/file`, {
-                method: "POST",
-                headers: getHeaders(false),
-                body: formData,
-            });
-            const uploadedFile = await response.json();
-            addFile(uploadedFile);
-            return uploadedFile;
+            if (!result.success) {
+                updateUploadingFile(uploadingId, {
+                    status: 'error',
+                    error: result.error || 'Upload failed'
+                });
+                setError(result.error || 'Upload failed');
+                return;
+            }
+
+            addFile(result.file);
+            return result.file;
         } finally {
             removeUploadingFile(uploadingId);
             accountService.getMe();

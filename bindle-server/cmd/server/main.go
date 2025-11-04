@@ -60,12 +60,21 @@ func main() {
 	}))
 	app.Use(logger.New())
 
-	// Global rate limiter for all routes
+	// Global rate limiter for all routes (except chunk uploads which have their own limit)
 	app.Use(limiter.New(limiter.Config{
 		Max:        100, // 100 requests
 		Expiration: 1 * time.Minute,
 		KeyGenerator: func(c *fiber.Ctx) string {
 			return c.IP() // Rate limit by IP address
+		},
+		SkipFailedRequests: false,
+		SkipSuccessfulRequests: false,
+		Next: func(c *fiber.Ctx) bool {
+			// Skip rate limiting for chunk upload endpoints and file downloads
+			path := c.Path()
+			return path == "/api/file/chunk/init" ||
+				   (len(path) > 16 && path[:16] == "/api/file/chunk/") ||
+				   (len(path) > 7 && path[:7] == "/files/")
 		},
 	}))
 
@@ -83,7 +92,7 @@ func main() {
 		// Disable scripts on possible html files
 		c.Set("Content-Security-Policy", "script-src 'none'")
 
-		return handlers.GetFile(c, storageInstance, c.Params("filePath"))
+		return handlers.GetFile(c, db, storageInstance, c.Params("filePath"))
 	})
 
 	// Serve static files from the React build
@@ -107,6 +116,31 @@ func main() {
 	})
 	api.Put("/file", func(c *fiber.Ctx) error {
 		return handlers.UpdateFile(c, db)
+	})
+
+	// Chunked upload routes
+	// Note: More specific routes must come BEFORE generic parameterized routes
+	// These routes are exempt from the global rate limiter to allow large file uploads
+	// They still respect daily upload quotas enforced in the handlers
+	chunkRateLimiter := limiter.New(limiter.Config{
+		Max:        3000, // Allow 3000 requests per minute for chunk uploads (enough for ~30GB/min)
+		Expiration: 1 * time.Minute,
+		KeyGenerator: func(c *fiber.Ctx) string {
+			return c.IP()
+		},
+	})
+
+	api.Post("/file/chunk/init", chunkRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.InitChunkedUpload(c, db, &config, storageInstance)
+	})
+	api.Post("/file/chunk/:sessionId/complete", chunkRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.CompleteChunkedUpload(c, db, storageInstance)
+	})
+	api.Post("/file/chunk/:sessionId/:chunkNumber", chunkRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.UploadChunk(c, db, storageInstance)
+	})
+	api.Delete("/file/chunk/:sessionId", chunkRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.AbortChunkedUpload(c, db, storageInstance)
 	})
 
 	// Handle SPA routing - serve index.html for all non-API routes

@@ -24,7 +24,7 @@ func GetMe(c *fiber.Ctx, db *gorm.DB) error {
 	}
 
 	limitBytes := int64(cfg.UploadLimitMBPerDay * 1000 * 1000)
-	maxFileSizeBytes := int64(cfg.RequestSizeLimitMB * 1000 * 1000)
+	maxFileSizeBytes := int64(cfg.MaxFileSizeMB * 1000 * 1000)
 
 	userDTO := models.UserDTO{
 		AccountId: user.AccountId,

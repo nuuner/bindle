@@ -24,6 +24,8 @@ type Config struct {
 	AccountExpirationDays int
 	// Upload limits
 	UploadLimitMBPerDay int64
+	ChunkSizeMB         int64
+	MaxFileSizeMB       int64
 	// Encryption
 	EncryptionKey []byte
 }
@@ -51,6 +53,18 @@ func GetConfig() Config {
 		uploadLimitMBPerDay = 1000
 	}
 
+	chunkSizeMB, err := strconv.ParseInt(os.Getenv("CHUNK_SIZE_MB"), 10, 64)
+	if err != nil {
+		log.Println("No CHUNK_SIZE_MB environment variable found, using default value of 10MB")
+		chunkSizeMB = 10
+	}
+
+	maxFileSizeMB, err := strconv.ParseInt(os.Getenv("MAX_FILE_SIZE_MB"), 10, 64)
+	if err != nil {
+		log.Println("No MAX_FILE_SIZE_MB environment variable found, using default value of 20480MB (20GB)")
+		maxFileSizeMB = 20480
+	}
+
 	encryptionKey := os.Getenv("ENCRYPTION_KEY")
 	if encryptionKey == "" {
 		log.Fatal("ENCRYPTION_KEY environment variable is not set")
@@ -76,6 +90,8 @@ func GetConfig() Config {
 		FilesystemPath:        os.Getenv("FILESYSTEM_PATH"),
 		AccountExpirationDays: accountExpirationDays,
 		UploadLimitMBPerDay:   uploadLimitMBPerDay,
+		ChunkSizeMB:           chunkSizeMB,
+		MaxFileSizeMB:         maxFileSizeMB,
 		EncryptionKey:         encryptionKeyBytes,
 	}
 

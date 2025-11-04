@@ -19,6 +19,32 @@ const (
 	FileTypeUnknown FileType = "unknown"
 )
 
+// Upload Session Status
+type UploadSessionStatus string
+
+const (
+	UploadSessionStatusActive    UploadSessionStatus = "active"
+	UploadSessionStatusCompleted UploadSessionStatus = "completed"
+	UploadSessionStatusCancelled UploadSessionStatus = "cancelled"
+	UploadSessionStatusExpired   UploadSessionStatus = "expired"
+)
+
+// Upload Session models
+type UploadSession struct {
+	gorm.Model
+	SessionID      string              `json:"sessionId" gorm:"uniqueIndex"`
+	AccountID      uint                `json:"accountId"`
+	Account        User                `json:"account"`
+	FileName       string              `json:"fileName"`
+	FileSize       int64               `json:"fileSize"`
+	MimeType       string              `json:"mimeType"`
+	TotalChunks    int                 `json:"totalChunks"`
+	UploadedChunks int                 `json:"uploadedChunks"`
+	FileHash       string              `json:"fileHash"`
+	Status         UploadSessionStatus `json:"status"`
+	ExpiresAt      time.Time           `json:"expiresAt"`
+}
+
 // User related models
 type User struct {
 	gorm.Model
@@ -45,15 +71,16 @@ func (u *User) MarshalJSON() ([]byte, error) {
 // File related models
 type UploadedFile struct {
 	gorm.Model
-	FileId   string   `json:"fileId" gorm:"uniqueIndex"`
-	FilePath string   `json:"filePath"`
-	FileName string   `json:"fileName"`
-	Size     int64    `json:"size"`
-	Type     FileType `json:"type"`
-	MimeType string   `json:"mimeType"`
-	Details  *string  `json:"details,omitempty"`
-	OwnerID  uint     `json:"ownerId"`
-	Owner    User
+	FileId     string   `json:"fileId" gorm:"uniqueIndex"`
+	FilePath   string   `json:"filePath"`
+	FileName   string   `json:"fileName"`
+	Size       int64    `json:"size"`
+	Type       FileType `json:"type"`
+	MimeType   string   `json:"mimeType"`
+	Details    *string  `json:"details,omitempty"`
+	ChunkCount int      `json:"chunkCount" gorm:"default:0"` // 0 = single file upload, >0 = chunked upload
+	OwnerID    uint     `json:"ownerId"`
+	Owner      User
 }
 
 type UploadedFileDTO struct {
