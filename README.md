@@ -11,6 +11,7 @@ Bindle is a modern file sharing platform built with Go and Svelte. It provides a
 - Responsive design
 - Drag & drop file uploads
 - Storage quota management
+- Admin panel for file and user management
 
 ## Tech Stack
 
@@ -34,6 +35,9 @@ cd bindle
 FILESYSTEM_PATH=./files
 
 UPLOAD_LIMIT_MB_PER_DAY=1000
+
+# Admin password for /admin panel (optional)
+ADMIN_PASSWORD=your_secure_password_here
 ```
 
 or
@@ -47,6 +51,9 @@ S3_REGION=us-east-1
 S3_ENDPOINT=https://s3.us-east-1.amazonaws.com
 
 UPLOAD_LIMIT_MB_PER_DAY=1000
+
+# Admin password for /admin panel (optional)
+ADMIN_PASSWORD=your_secure_password_here
 ```
 
 3. Also create a `.env` file in the `bindle-client` directory:
@@ -61,6 +68,28 @@ docker compose up --build
 ```
 
 The application will be available at `http://localhost:3001`.
+
+## Admin Panel
+
+Bindle includes an admin panel for managing users and files. To enable it:
+
+1. Add an admin password to your `.env` file in `bindle-server`:
+
+```env
+ADMIN_PASSWORD=your_secure_password_here
+```
+
+2. Restart the server and navigate to `/admin`
+
+3. Enter your admin password when prompted
+
+### Admin Features
+
+- View all users with statistics (file count, storage usage, last login, IP addresses)
+- View all files in the system with owner information
+- Delete individual files
+- Delete all files for a specific user
+- Delete all files in the system (nuclear option)
 
 ## Development
 

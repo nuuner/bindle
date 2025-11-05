@@ -143,6 +143,31 @@ func main() {
 		return handlers.AbortChunkedUpload(c, db, storageInstance)
 	})
 
+	// Admin routes
+	admin := api.Group("/admin")
+	admin.Use(middleware.AdminAuthMiddleware())
+
+	admin.Get("/users", func(c *fiber.Ctx) error {
+		return handlers.ListAllUsers(c, db)
+	})
+	admin.Get("/files", func(c *fiber.Ctx) error {
+		return handlers.ListAllFiles(c, db)
+	})
+	admin.Delete("/files/:fileId", func(c *fiber.Ctx) error {
+		return handlers.AdminDeleteFile(c, db, storageInstance, c.Params("fileId"))
+	})
+	admin.Delete("/users/:accountId/files", func(c *fiber.Ctx) error {
+		return handlers.DeleteUserFiles(c, db, storageInstance, c.Params("accountId"))
+	})
+	admin.Delete("/files", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.DeleteAllFiles(c, db, storageInstance)
+	})
+
+	// Serve admin page (must come before catch-all route)
+	app.Get("/admin", func(c *fiber.Ctx) error {
+		return c.SendFile("./static/admin.html")
+	})
+
 	// Handle SPA routing - serve index.html for all non-API routes
 	app.Get("/*", func(c *fiber.Ctx) error {
 		return c.SendFile("./static/index.html")

@@ -32,3 +32,6 @@ files/
 bindle.db
 
 tmp/*
+
+# Frontend build output (generated from bindle-client)
+static/
