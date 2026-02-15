@@ -19,7 +19,9 @@
 <div>Current account ID</div>
 <div class="flex items-center">
     {#if getAccountId()}
-        <strong class="mr-2 whitespace-nowrap">{getAccountId() || ""}</strong>
+        <strong class="mr-2 whitespace-nowrap"
+            >{#each (getAccountId() || "").split("") as char}{#if /\d/.test(char)}<span class="opacity-70">{char}</span>{:else}{char}{/if}{/each}</strong
+        >
         <CopyButton
             text={getAccountId() || ""}
             iconDescription="Copy account ID"

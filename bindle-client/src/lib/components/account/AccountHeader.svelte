@@ -28,7 +28,9 @@
 <div class="w-full">
     <div class="mb-2">Current account ID</div>
     {#if getAccountId()}
-        <strong class="whitespace-nowrap">{getAccountId()}</strong>
+        <strong class="whitespace-nowrap"
+            >{#each getAccountId()?.split("") ?? [] as char}{#if /\d/.test(char)}<span class="opacity-70">{char}</span>{:else}{char}{/if}{/each}</strong
+        >
         <div class="mt-3 flex justify-between">
             <div class="flex items-center flex-row">
                 <CopyButton
