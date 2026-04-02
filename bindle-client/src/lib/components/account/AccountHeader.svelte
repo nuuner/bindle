@@ -20,8 +20,9 @@
     let qrCodeModalOpen = $state(false);
 
     function handleFileUpload(event: CustomEvent<readonly File[]>) {
-        const file = event.detail[0];
-        fileService.uploadFile(file);
+        for (const file of event.detail) {
+            fileService.uploadFile(file);
+        }
     }
 </script>
 
@@ -61,7 +62,8 @@
             <div>
                 <FileUploaderButton
                     size="field"
-                    labelText="Upload file"
+                    labelText="Upload files"
+                    multiple
                     disableLabelChanges
                     on:change={handleFileUpload}
                 />
