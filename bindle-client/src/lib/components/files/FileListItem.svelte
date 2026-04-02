@@ -6,6 +6,7 @@
         Video,
         Music,
         Copy,
+        Download,
         TrashCan,
         DocumentBlank,
         Checkmark,
@@ -25,7 +26,7 @@
 </script>
 
 <div
-    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_100px] hover:bg-zinc-900 w-full"
+    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_130px] hover:bg-zinc-900 w-full"
 >
     <div class="flex items-center justify-center">
         {#if file.type === FileType.text}
@@ -95,6 +96,20 @@
         {bytesToMB(file.size).toFixed(2)} MB
     </div>
     <div class="flex items-center">
+        <Button
+            icon={Download}
+            size="small"
+            kind="ghost"
+            iconDescription="Download file"
+            tooltipPosition="left"
+            on:click={() => {
+                const a = document.createElement("a");
+                a.href = file.url;
+                a.download = file.fileName;
+                a.click();
+                (document.activeElement as HTMLElement)?.blur();
+            }}
+        />
         <Button
             icon={Copy}
             size="small"
