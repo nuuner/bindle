@@ -31,8 +31,9 @@
 
         const files = e.dataTransfer?.files;
         if (files && files.length > 0) {
-            const file = files[0];
-            fileService.uploadFile(file);
+            for (const file of files) {
+                fileService.uploadFile(file);
+            }
         }
     }
 </script>
@@ -51,7 +52,7 @@
         <div
             class="bg-white rounded-lg shadow-lg p-8 text-xl font-semibold text-gray-800"
         >
-            Drop file to upload it
+            Drop files to upload
         </div>
     </div>
 {/if}
