@@ -32,12 +32,18 @@ const (
 // Upload Session models
 type UploadSession struct {
 	gorm.Model
-	SessionID      string              `json:"sessionId" gorm:"uniqueIndex"`
-	AccountID      uint                `json:"accountId"`
-	Account        User                `json:"account"`
-	FileName       string              `json:"fileName"`
-	FileSize       int64               `json:"fileSize"`
-	MimeType       string              `json:"mimeType"`
+	SessionID string `json:"sessionId" gorm:"uniqueIndex"`
+	AccountID uint   `json:"accountId"`
+	Account   User   `json:"account"`
+	FileName  string `json:"fileName"`
+	// FileSize is the size the client declared at init. It is checked against the
+	// upload quota up front and then enforced per chunk, so it is an upper bound on
+	// what the session can actually store.
+	FileSize int64  `json:"fileSize"`
+	MimeType string `json:"mimeType"`
+	// ChunkSize is pinned at init so that chunk bounds stay stable for the life of
+	// the session even if CHUNK_SIZE_MB changes underneath it.
+	ChunkSize      int64               `json:"chunkSize"`
 	TotalChunks    int                 `json:"totalChunks"`
 	UploadedChunks int                 `json:"uploadedChunks"`
 	FileHash       string              `json:"fileHash"`

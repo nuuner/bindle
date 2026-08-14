@@ -34,14 +34,24 @@ func InitChunkedUpload(c *fiber.Ctx, db *gorm.DB, cfg *config.Config, st storage
 	}
 
 	// Validate input
-	if req.FileName == "" || req.FileSize <= 0 || req.TotalChunks <= 0 {
+	if req.FileName == "" || req.FileSize <= 0 {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Invalid file metadata"})
+	}
+
+	if req.FileSize > cfg.MaxFileSizeMB*1000*1000 {
+		return c.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{"error": "File exceeds maximum allowed size"})
 	}
 
 	// Check upload limits
 	if limiter.ShouldThrottle(c, db, cfg, req.FileSize) {
 		return c.Status(fiber.StatusTooManyRequests).JSON(fiber.Map{"error": "Upload limit exceeded"})
 	}
+
+	// The chunk layout is derived from the declared size rather than taken from the
+	// request: it is what bounds every subsequent chunk, so the client must not get
+	// to pick it. req.TotalChunks is accepted for compatibility but ignored.
+	chunkSize := cfg.ChunkSizeMB * 1024 * 1024
+	totalChunks := int((req.FileSize + chunkSize - 1) / chunkSize)
 
 	// Generate session ID
 	sessionID := uuid.New().String()
@@ -54,7 +64,8 @@ func InitChunkedUpload(c *fiber.Ctx, db *gorm.DB, cfg *config.Config, st storage
 		FileName:       req.FileName,
 		FileSize:       req.FileSize,
 		MimeType:       req.MimeType,
-		TotalChunks:    req.TotalChunks,
+		ChunkSize:      chunkSize,
+		TotalChunks:    totalChunks,
 		UploadedChunks: 0,
 		Status:         models.UploadSessionStatusActive,
 		ExpiresAt:      time.Now().Add(24 * time.Hour), // 24 hour expiration
@@ -66,18 +77,36 @@ func InitChunkedUpload(c *fiber.Ctx, db *gorm.DB, cfg *config.Config, st storage
 	}
 
 	// Initialize storage for chunked upload
-	err := st.InitChunkedUpload(sessionID, req.FileName, req.TotalChunks)
+	err := st.InitChunkedUpload(sessionID, req.FileName, totalChunks)
 	if err != nil {
 		log.Printf("Failed to initialize chunked upload: %v", err)
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to initialize upload"})
 	}
 
-	log.Printf("Initialized upload session %s for file %s (%d bytes, %d chunks)", sessionID, req.FileName, req.FileSize, req.TotalChunks)
+	log.Printf("Initialized upload session %s for file %s (%d bytes, %d chunks)", sessionID, req.FileName, req.FileSize, totalChunks)
 
 	return c.Status(fiber.StatusOK).JSON(fiber.Map{
-		"sessionId": sessionID,
-		"chunkSize": cfg.ChunkSizeMB * 1024 * 1024,
+		"sessionId":   sessionID,
+		"chunkSize":   chunkSize,
+		"totalChunks": totalChunks,
 	})
+}
+
+// maxChunkBytes returns how many bytes chunk chunkNumber is allowed to carry: the
+// slice of the declared file that lands at that index. Bounding every chunk this way
+// is what keeps a session from storing more than the size that was quota-checked at
+// init - without it a client could declare one byte and then upload chunks of any
+// size. The bound depends only on the chunk index, so retrying a chunk re-checks the
+// same value instead of drifting the way a running total would.
+func maxChunkBytes(session *models.UploadSession, chunkNumber int) int64 {
+	remaining := session.FileSize - int64(chunkNumber)*session.ChunkSize
+	if remaining < 0 {
+		return 0
+	}
+	if remaining > session.ChunkSize {
+		return session.ChunkSize
+	}
+	return remaining
 }
 
 // UploadChunk handles uploading a single chunk
@@ -115,6 +144,12 @@ func UploadChunk(c *fiber.Ctx, db *gorm.DB, st storage.Storage) error {
 		return c.Status(fiber.StatusBadRequest).JSON(fiber.Map{"error": "Empty chunk data"})
 	}
 
+	if int64(len(chunkData)) > maxChunkBytes(&uploadSession, chunkNumber) {
+		return c.Status(fiber.StatusRequestEntityTooLarge).JSON(fiber.Map{
+			"error": "Chunk exceeds the size declared for this upload",
+		})
+	}
+
 	// Save chunk to storage
 	err = st.SaveChunk(sessionID, chunkNumber, chunkData)
 	if err != nil {
@@ -122,8 +157,11 @@ func UploadChunk(c *fiber.Ctx, db *gorm.DB, st storage.Storage) error {
 		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{"error": "Failed to save chunk"})
 	}
 
-	// Update session progress
-	uploadSession.UploadedChunks = chunkNumber + 1
+	// Track the high-water mark rather than the last chunk seen, so a retry of an
+	// earlier chunk cannot walk the progress count backwards.
+	if chunkNumber+1 > uploadSession.UploadedChunks {
+		uploadSession.UploadedChunks = chunkNumber + 1
+	}
 	db.Save(&uploadSession)
 
 	log.Printf("Uploaded chunk %d/%d for session %s (%d bytes)", chunkNumber+1, uploadSession.TotalChunks, sessionID, len(chunkData))

@@ -66,9 +66,38 @@ func getAllConnectedAccountsAndIPs(db *gorm.DB, ipAddress string) ([]uint, []str
 	return accountIDs, ips, nil
 }
 
+// getUsedBytes returns the bytes the given accounts have consumed against the daily
+// quota: files completed in the last 24 hours, plus the sizes reserved by chunked
+// upload sessions that are still in flight. In-flight sessions have no UploadedFile
+// row yet, so counting only completed files would let a client open many sessions
+// concurrently and have each one pass the check against the same stale total.
+func getUsedBytes(db *gorm.DB, accountIDs []uint) (int64, error) {
+	oneDayAgo := time.Now().Add(-24 * time.Hour)
+
+	var completedSize int64
+	err := db.Model(&models.UploadedFile{}).
+		Where("owner_id IN ? AND created_at > ?", accountIDs, oneDayAgo).
+		Select("COALESCE(SUM(size), 0)").
+		Scan(&completedSize).Error
+	if err != nil {
+		return 0, err
+	}
+
+	var reservedSize int64
+	err = db.Model(&models.UploadSession{}).
+		Where("account_id IN ? AND status = ? AND expires_at > ?",
+			accountIDs, models.UploadSessionStatusActive, time.Now()).
+		Select("COALESCE(SUM(file_size), 0)").
+		Scan(&reservedSize).Error
+	if err != nil {
+		return 0, err
+	}
+
+	return completedSize + reservedSize, nil
+}
+
 func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config, fileSize int64) bool {
 	ipAddress := c.IP()
-	oneDayAgo := time.Now().Add(-24 * time.Hour)
 
 	// Get all connected accounts and IPs
 	accountIDs, _, err := getAllConnectedAccountsAndIPs(db, ipAddress)
@@ -81,24 +110,16 @@ func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config, fileSize i
 		return false
 	}
 
-	// Calculate total size of files uploaded in the last 24 hours
-	var totalSize int64
-	err = db.Model(&models.UploadedFile{}).
-		Where("owner_id IN ? AND created_at > ?", accountIDs, oneDayAgo).
-		Select("COALESCE(SUM(size), 0)").
-		Scan(&totalSize).Error
-
+	usedSize, err := getUsedBytes(db, accountIDs)
 	if err != nil {
 		return true // If there's an error, throttle to be safe
 	}
 
 	// Check if total size exceeds the limit
-	return totalSize+fileSize >= int64(config.UploadLimitMBPerDay*1000*1000)
+	return usedSize+fileSize >= int64(config.UploadLimitMBPerDay*1000*1000)
 }
 
 func GetUploadedSizeForIP(db *gorm.DB, ipAddress string) (int64, error) {
-	oneDayAgo := time.Now().Add(-24 * time.Hour)
-
 	// Get all connected accounts and IPs
 	accountIDs, _, err := getAllConnectedAccountsAndIPs(db, ipAddress)
 	if err != nil {
@@ -110,12 +131,5 @@ func GetUploadedSizeForIP(db *gorm.DB, ipAddress string) (int64, error) {
 		return 0, nil
 	}
 
-	// Calculate total size of files uploaded in the last 24 hours
-	var totalSize int64
-	err = db.Model(&models.UploadedFile{}).
-		Where("owner_id IN ? AND created_at > ?", accountIDs, oneDayAgo).
-		Select("COALESCE(SUM(size), 0)").
-		Scan(&totalSize).Error
-
-	return totalSize, err
+	return getUsedBytes(db, accountIDs)
 }

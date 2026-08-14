@@ -1,12 +1,16 @@
 import { updateUploadingFile } from '../stores/uploadStore.svelte';
 import { getHeaders } from './fileService';
 
-const CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
+// Only used to size the initial request. The server pins the authoritative chunk
+// layout at init and returns it; the upload loop below uses that, since the server
+// rejects any chunk that does not fit the slice it expects.
+const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
 const MAX_RETRIES = 3;
 
 export interface ChunkUploadSession {
 	sessionId: string;
 	chunkSize: number;
+	totalChunks: number;
 }
 
 export interface ChunkUploadResult {
@@ -23,14 +27,15 @@ export async function uploadFileChunked(
 	uploadId: string
 ): Promise<ChunkUploadResult> {
 	try {
-		// Calculate total chunks
-		const totalChunks = Math.ceil(file.size / CHUNK_SIZE);
-
 		// Initialize upload session
-		const session = await initChunkedUpload(file, totalChunks);
+		const session = await initChunkedUpload(file, Math.ceil(file.size / DEFAULT_CHUNK_SIZE));
 		if (!session) {
 			return { success: false, error: 'Failed to initialize upload session' };
 		}
+
+		// The server decides how the file is split; follow its layout, not ours.
+		const chunkSize = session.chunkSize || DEFAULT_CHUNK_SIZE;
+		const totalChunks = session.totalChunks || Math.ceil(file.size / chunkSize);
 
 		// Update upload store with session info
 		updateUploadingFile(uploadId, {
@@ -44,8 +49,8 @@ export async function uploadFileChunked(
 		let uploadedBytes = 0;
 
 		for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
-			const start = chunkNumber * CHUNK_SIZE;
-			const end = Math.min(start + CHUNK_SIZE, file.size);
+			const start = chunkNumber * chunkSize;
+			const end = Math.min(start + chunkSize, file.size);
 			const chunk = file.slice(start, end);
 
 			// Upload chunk with retry logic
