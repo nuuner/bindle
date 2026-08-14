@@ -69,6 +69,34 @@ docker compose up --build
 
 The application will be available at `http://localhost:3001`.
 
+## Running behind a reverse proxy
+
+Rate limits and daily upload quotas are keyed on the client IP. Behind a proxy the
+server sees the proxy's address on every request, which puts every user into a single
+rate limit and a single shared quota. To get the real client IP, set both:
+
+```env
+TRUSTED_PROXIES=172.17.0.1,10.0.0.0/8
+PROXY_HEADER=X-Real-IP
+```
+
+The header is only trusted for requests arriving from an address in `TRUSTED_PROXIES`;
+anything else falls back to the socket address. Both must be set together, and the
+server refuses to start with only one of them — a trusted header without a proxy
+allowlist would let any client spoof its IP and shed both limits.
+
+Your proxy must **overwrite** the header rather than append to a client-supplied value.
+Check which header yours sets and whether it replaces or appends — some proxies default
+to appending to `X-Forwarded-For`, which leaves the first entry attacker-controlled.
+
+If the proxy reaches the container over a container network, trust that network's
+subnet rather than the proxy's address, since container addresses change on restart.
+
+Make sure the container's port is not also published on the host. A published port is a
+second route to the app that does not pass through the proxy, and requests arriving that
+way can still carry a peer address inside the trusted range — which would let a client
+set the header itself and shed both the rate limit and the upload quota.
+
 ## Admin Panel
 
 Bindle includes an admin panel for managing users and files. To enable it:
