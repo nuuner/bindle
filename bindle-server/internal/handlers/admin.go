@@ -4,6 +4,7 @@ import (
 	"log"
 
 	"github.com/gofiber/fiber/v2"
+	"github.com/nuuner/bindle-server/internal/config"
 	"github.com/nuuner/bindle-server/internal/models"
 	"github.com/nuuner/bindle-server/internal/storage"
 	"gorm.io/gorm"
@@ -18,6 +19,24 @@ type AdminUserDTO struct {
 	IPAddresses  []string `json:"ipAddresses"`
 }
 
+// AdminStatsDTO is the system-wide overview shown at the top of the admin panel.
+//
+// Uploads are content-addressed (file_path is the SHA-256 of the contents), so several
+// records can share one stored blob. FileRecords and UniqueFiles therefore differ, as do
+// LogicalBytes and StoredBytes.
+type AdminStatsDTO struct {
+	FileRecords      int64  `json:"fileRecords"`      // rows in uploaded_files
+	UniqueFiles      int64  `json:"uniqueFiles"`      // distinct file_path, i.e. blobs actually stored
+	LogicalBytes     int64  `json:"logicalBytes"`     // sum of every record's size
+	StoredBytes      int64  `json:"storedBytes"`      // one size per distinct file_path
+	DedupSavedBytes  int64  `json:"dedupSavedBytes"`  // LogicalBytes - StoredBytes
+	TotalUsers       int64  `json:"totalUsers"`
+	UsersWithFiles   int64  `json:"usersWithFiles"`
+	AverageFileBytes int64  `json:"averageFileBytes"`
+	LargestFileBytes int64  `json:"largestFileBytes"`
+	StorageBackend   string `json:"storageBackend"`
+}
+
 type AdminFileDTO struct {
 	FileId     string `json:"fileId"`
 	FileName   string `json:"fileName"`
@@ -29,6 +48,60 @@ type AdminFileDTO struct {
 	AccountId  string `json:"accountId"`
 	ChunkCount int    `json:"chunkCount"`
 	CreatedAt  string `json:"createdAt"`
+}
+
+// ComputeAdminStats gathers the system-wide totals for the admin overview.
+//
+// Every count goes through db.Model so GORM's soft-delete scope applies and deleted
+// records are excluded; hand-written raw SQL would silently count them.
+func ComputeAdminStats(db *gorm.DB, cfg *config.Config) (AdminStatsDTO, error) {
+	stats := AdminStatsDTO{}
+
+	// Deduplicated size: take one size per distinct file_path. The inner query stays a
+	// Model query so it keeps the soft-delete filter.
+	uniquePaths := db.Model(&models.UploadedFile{}).Select("MAX(size) AS sz").Group("file_path")
+
+	// Count and Scan are finishers, so each query below runs as the slice is built; the
+	// loop only collects their errors.
+	for _, query := range []*gorm.DB{
+		db.Model(&models.UploadedFile{}).Count(&stats.FileRecords),
+		db.Model(&models.UploadedFile{}).Distinct("file_path").Count(&stats.UniqueFiles),
+		db.Model(&models.UploadedFile{}).Select("COALESCE(SUM(size), 0)").Scan(&stats.LogicalBytes),
+		db.Model(&models.UploadedFile{}).Select("COALESCE(MAX(size), 0)").Scan(&stats.LargestFileBytes),
+		db.Table("(?) as unique_files", uniquePaths).Select("COALESCE(SUM(sz), 0)").Scan(&stats.StoredBytes),
+		db.Model(&models.User{}).Count(&stats.TotalUsers),
+		db.Model(&models.UploadedFile{}).Distinct("owner_id").Count(&stats.UsersWithFiles),
+	} {
+		if query.Error != nil {
+			return AdminStatsDTO{}, query.Error
+		}
+	}
+
+	stats.DedupSavedBytes = stats.LogicalBytes - stats.StoredBytes
+	if stats.FileRecords > 0 {
+		stats.AverageFileBytes = stats.LogicalBytes / stats.FileRecords
+	}
+
+	if cfg.S3Enabled {
+		stats.StorageBackend = "S3"
+	} else {
+		stats.StorageBackend = "Filesystem"
+	}
+
+	return stats, nil
+}
+
+// GetAdminStats returns system-wide totals for the admin overview
+func GetAdminStats(c *fiber.Ctx, db *gorm.DB, cfg *config.Config) error {
+	stats, err := ComputeAdminStats(db, cfg)
+	if err != nil {
+		log.Printf("Failed to compute admin stats: %v", err)
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to compute stats",
+		})
+	}
+
+	return c.JSON(stats)
 }
 
 // ListAllUsers returns all users with their statistics

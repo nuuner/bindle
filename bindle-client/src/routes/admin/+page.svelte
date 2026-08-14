@@ -1,15 +1,20 @@
 <script lang="ts">
     import { onMount } from "svelte";
-    import { adminService, type AdminUser, type AdminFile } from "$lib/services/adminService";
+    import {
+        adminService,
+        type AdminUser,
+        type AdminFile,
+        type AdminStats,
+    } from "$lib/services/adminService";
     import {
         Modal,
         DataTable,
         Button,
         InlineNotification,
         PasswordInput,
-        Toolbar,
-        ToolbarContent,
     } from "carbon-components-svelte";
+    import StatTile from "$lib/components/admin/StatTile.svelte";
+    import { formatBytes } from "$lib/utils/fileUtils";
     import TrashCan from "carbon-icons-svelte/lib/TrashCan.svelte";
     import Renew from "carbon-icons-svelte/lib/Renew.svelte";
 
@@ -21,6 +26,7 @@
 
     let users = $state<AdminUser[]>([]);
     let files = $state<AdminFile[]>([]);
+    let stats = $state<AdminStats | null>(null);
 
     let showDeleteAllModal = $state(false);
     let showDeleteUserModal = $state(false);
@@ -54,7 +60,8 @@
     async function loadData() {
         try {
             const adminPassword = sessionStorage.getItem("adminPassword") || password;
-            [users, files] = await Promise.all([
+            [stats, users, files] = await Promise.all([
+                adminService.getStats(adminPassword),
                 adminService.getAllUsers(adminPassword),
                 adminService.getAllFiles(adminPassword),
             ]);
@@ -112,14 +119,6 @@
         } catch (err) {
             error = err instanceof Error ? err.message : "Failed to delete all files";
         }
-    }
-
-    function formatBytes(bytes: number): string {
-        if (bytes === 0) return "0 B";
-        const k = 1024;
-        const sizes = ["B", "KB", "MB", "GB", "TB"];
-        const i = Math.floor(Math.log(bytes) / Math.log(k));
-        return parseFloat((bytes / Math.pow(k, i)).toFixed(2)) + " " + sizes[i];
     }
 
     onMount(() => {
@@ -213,6 +212,40 @@
                 subtitle={error}
                 on:close={() => (error = "")}
             />
+        {/if}
+
+        {#if stats}
+            <div class="flex flex-col gap-2">
+                <div class="grid grid-cols-2 md:grid-cols-4 gap-4">
+                    <StatTile
+                        label="Files"
+                        value={stats.fileRecords.toLocaleString()}
+                        hint="{stats.uniqueFiles.toLocaleString()} unique after dedup"
+                    />
+                    <StatTile
+                        label="Stored"
+                        value={formatBytes(stats.storedBytes)}
+                        hint="{formatBytes(stats.logicalBytes)} logical · {formatBytes(
+                            stats.dedupSavedBytes
+                        )} saved"
+                    />
+                    <StatTile
+                        label="Users with files"
+                        value={stats.usersWithFiles.toLocaleString()}
+                        hint="{stats.totalUsers.toLocaleString()} accounts total"
+                    />
+                    <StatTile
+                        label="Largest file"
+                        value={formatBytes(stats.largestFileBytes)}
+                        hint="{formatBytes(stats.averageFileBytes)} average"
+                    />
+                </div>
+                <p class="text-xs text-zinc-500">
+                    Storage backend: {stats.storageBackend}. Stored is deduplicated content
+                    size as recorded; files are encrypted at rest, so actual disk usage is
+                    somewhat higher.
+                </p>
+            </div>
         {/if}
 
         <div>

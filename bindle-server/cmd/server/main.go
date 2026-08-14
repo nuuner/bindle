@@ -3,6 +3,7 @@ package main
 import (
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/gofiber/fiber/v2"
@@ -100,7 +101,17 @@ func main() {
 
 	// API routes
 	api := app.Group("/api")
-	api.Use(middleware.AuthMiddleware(db))
+
+	// AuthMiddleware mints a new account (and a users row) whenever the Authorization
+	// header is absent. Admin routes authenticate with X-Admin-Password instead and never
+	// send one, so they must skip it or every admin request would create a phantom user.
+	authMiddleware := middleware.AuthMiddleware(db)
+	api.Use(func(c *fiber.Ctx) error {
+		if strings.HasPrefix(c.Path(), "/api/admin") {
+			return c.Next()
+		}
+		return authMiddleware(c)
+	})
 
 	api.Get("/me", func(c *fiber.Ctx) error {
 		return handlers.GetMe(c, db)
@@ -147,6 +158,9 @@ func main() {
 	admin := api.Group("/admin")
 	admin.Use(middleware.AdminAuthMiddleware())
 
+	admin.Get("/stats", func(c *fiber.Ctx) error {
+		return handlers.GetAdminStats(c, db, &config)
+	})
 	admin.Get("/users", func(c *fiber.Ctx) error {
 		return handlers.ListAllUsers(c, db)
 	})

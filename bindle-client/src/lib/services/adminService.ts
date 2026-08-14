@@ -21,6 +21,24 @@ export interface AdminFile {
     createdAt: string;
 }
 
+/**
+ * System-wide overview totals. Uploads are content-addressed, so fileRecords counts
+ * database rows while uniqueFiles counts the blobs actually stored -- likewise
+ * logicalBytes vs storedBytes.
+ */
+export interface AdminStats {
+    fileRecords: number;
+    uniqueFiles: number;
+    logicalBytes: number;
+    storedBytes: number;
+    dedupSavedBytes: number;
+    totalUsers: number;
+    usersWithFiles: number;
+    averageFileBytes: number;
+    largestFileBytes: number;
+    storageBackend: string;
+}
+
 const getAdminHeaders = (password: string) => {
     return {
         'Content-Type': 'application/json',
@@ -29,6 +47,19 @@ const getAdminHeaders = (password: string) => {
 };
 
 export const adminService = {
+    async getStats(password: string): Promise<AdminStats> {
+        const response = await fetch(`${config.apiHost}/admin/stats`, {
+            headers: getAdminHeaders(password),
+        });
+
+        if (!response.ok) {
+            const error = await response.json();
+            throw new Error(error.error || 'Failed to fetch stats');
+        }
+
+        return response.json();
+    },
+
     async getAllUsers(password: string): Promise<AdminUser[]> {
         const response = await fetch(`${config.apiHost}/admin/users`, {
             headers: getAdminHeaders(password),
