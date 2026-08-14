@@ -9,9 +9,9 @@
 </script>
 
 <Tile>
-    <p class="text-xs uppercase tracking-wide text-zinc-400">{label}</p>
+    <p class="text-xs uppercase tracking-wide text-carbon-text-secondary">{label}</p>
     <p class="text-2xl font-semibold">{value}</p>
     {#if hint}
-        <p class="text-xs text-zinc-400 mt-1">{hint}</p>
+        <p class="text-xs text-carbon-text-secondary mt-1">{hint}</p>
     {/if}
 </Tile>

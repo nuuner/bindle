@@ -5,6 +5,7 @@
         UnorderedList,
         ListItem,
         CopyButton,
+        Link,
         Tile,
         ComposedModal,
         ModalHeader,
@@ -98,11 +99,16 @@
                     </Tile>
                 </div>
                 <div class="mt-2 flex items-center justify-between gap-2">
-                    <a href={file?.url} target="_blank" class="min-w-0 flex-1">
+                    <Link
+                        href={file?.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="min-w-0 flex-1"
+                    >
                         <Truncate>
                             {file?.url}
                         </Truncate>
-                    </a>
+                    </Link>
                     <div class="flex items-center gap-2">
                         <CopyButton
                             text={file?.url ?? ""}

@@ -1,6 +1,10 @@
 <script lang="ts">
     import { InlineLoading, ProgressBar } from "carbon-components-svelte";
-    import { DocumentBlank, Error, Checkmark } from "carbon-icons-svelte";
+    import DocumentBlank from "carbon-icons-svelte/lib/DocumentBlank.svelte";
+    // Imported as ErrorIcon: the icon is exported as `Error`, which would shadow the
+    // global Error constructor for the rest of this module.
+    import ErrorIcon from "carbon-icons-svelte/lib/Error.svelte";
+    import Checkmark from "carbon-icons-svelte/lib/Checkmark.svelte";
     import { bytesToMB } from "$lib/utils/fileUtils";
     import type { UploadingFile } from "$lib/stores/uploadStore.svelte";
 
@@ -23,9 +27,9 @@
     <div class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_110px_auto] w-full">
         <div class="flex items-center justify-center">
             {#if file.status === 'error'}
-                <Error size={20} class="text-red-500" />
+                <ErrorIcon size={20} class="text-carbon-error" />
             {:else if file.status === 'completed'}
-                <Checkmark size={20} class="text-green-500" />
+                <Checkmark size={20} class="text-carbon-success" />
             {:else}
                 <DocumentBlank size={20} />
             {/if}
@@ -40,9 +44,9 @@
             {#if file.status === 'uploading'}
                 <InlineLoading description={formatChunkProgress() || 'Uploading...'} />
             {:else if file.status === 'error'}
-                <span class="text-red-500 text-sm">{file.error || 'Error'}</span>
+                <span class="text-carbon-error text-sm">{file.error || 'Error'}</span>
             {:else if file.status === 'completed'}
-                <span class="text-green-500 text-sm">Complete</span>
+                <span class="text-carbon-success text-sm">Complete</span>
             {/if}
         </div>
     </div>
@@ -50,7 +54,7 @@
     {#if file.status === 'uploading' && file.progress > 0}
         <div class="flex flex-col gap-1 ml-[46px]">
             <ProgressBar value={file.progress} max={100} size="sm" />
-            <div class="flex justify-between text-xs text-gray-500">
+            <div class="flex justify-between text-xs text-carbon-text-helper">
                 <span>{file.progress}%</span>
                 <span>{formatSpeed(file.speed)}</span>
             </div>

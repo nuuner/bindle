@@ -1,6 +1,7 @@
 <script lang="ts">
     import { config } from "$lib/config";
     import {
+        Link,
         ListItem,
         OrderedList,
         UnorderedList,
@@ -8,11 +9,13 @@
 </script>
 
 <div class="px-6">
-    <a href="/" class="text-zinc-400 hover:text-zinc-200 mb-4 underline"
-        >Back to home</a
-    >
+    <Link href="/">Back to home</Link>
 
-    <h1>Terms of Service - Prohibited Content</h1>
+    <!-- Tailwind's preflight resets heading sizes and Carbon only styles headings via
+         classes, so a bare <h1> would render at body size. -->
+    <h1 class="text-3xl font-bold mt-4 mb-2">
+        Terms of Service - Prohibited Content
+    </h1>
 
     <p class="py-2">
         By using this platform, you agree to the following terms regarding
@@ -59,7 +62,9 @@
         <ListItem class="py-2">
             Users who discover prohibited content should report it immediately
             to
-            <a href={`mailto:${config.contactEmail}`}>{config.contactEmail}</a>.
+            <Link href={`mailto:${config.contactEmail}`}
+                >{config.contactEmail}</Link
+            >.
         </ListItem>
         <ListItem class="py-2">
             We maintain logs of user activity that may be provided to law

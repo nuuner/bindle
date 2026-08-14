@@ -66,17 +66,17 @@
         
         <div class="relative">
             {#if isGenerating}
-                <div class="absolute inset-0 flex items-center justify-center bg-white">
+                <div class="absolute inset-0 flex items-center justify-center bg-carbon-layer">
                     <Loading small withOverlay={false} />
                 </div>
             {/if}
             <canvas 
                 bind:this={qrCanvas}
-                class="border border-gray-300 rounded"
+                class="border border-carbon-border"
             ></canvas>
         </div>
         
-        <p class="text-xs text-gray-300 text-center max-w-sm">
+        <p class="text-xs text-carbon-text-secondary text-center max-w-sm">
             Account ID: {getAccountId()}
         </p>
     </div>

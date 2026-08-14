@@ -47,10 +47,10 @@
 
 {#if isDragging}
     <div
-        class="fixed inset-0 bg-zinc-900/50 backdrop-blur-sm flex items-center justify-center z-50"
+        class="fixed inset-0 bg-carbon-bg/70 backdrop-blur-sm flex items-center justify-center z-50"
     >
         <div
-            class="bg-white rounded-lg shadow-lg p-8 text-xl font-semibold text-gray-800"
+            class="bg-carbon-layer border border-carbon-border shadow-lg p-8 text-xl font-semibold text-carbon-text"
         >
             Drop files to upload
         </div>

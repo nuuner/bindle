@@ -14,6 +14,7 @@
         PasswordInput,
         Toggle,
     } from "carbon-components-svelte";
+    import type { DataTableNonEmptyHeader } from "carbon-components-svelte/src/DataTable/DataTable.svelte";
     import StatTile from "$lib/components/admin/StatTile.svelte";
     import { formatBytes } from "$lib/utils/fileUtils";
     import TrashCan from "carbon-icons-svelte/lib/TrashCan.svelte";
@@ -138,7 +139,7 @@
     });
 
     // Prepare user table data
-    let userHeaders = $derived([
+    let userHeaders: DataTableNonEmptyHeader[] = $derived([
         { key: "accountId", value: "Account ID", width: "230px" },
         { key: "fileCount", value: "Files", width: "100px" },
         { key: "storageUsage", value: "Storage", width: "120px" },
@@ -168,7 +169,7 @@
     // Explicit widths make Carbon switch the table to `table-layout: fixed`, which stops
     // one pathologically long file name from squeezing every other column into wrapping.
     // Name is left unsized so it absorbs the remaining space, and truncates.
-    let fileHeaders = $derived([
+    let fileHeaders: DataTableNonEmptyHeader[] = $derived([
         { key: "fileId", value: "File ID", width: "330px" },
         { key: "fileName", value: "Name" },
         { key: "accountId", value: "Owner", width: "230px" },
@@ -253,7 +254,7 @@
                         hint="{formatBytes(stats.averageFileBytes)} average"
                     />
                 </div>
-                <p class="text-xs text-zinc-500">
+                <p class="text-xs text-carbon-text-helper">
                     Storage backend: {stats.storageBackend}. Stored is deduplicated content
                     size as recorded; files are encrypted at rest, so actual disk usage is
                     somewhat higher.
@@ -384,7 +385,7 @@
     danger
 >
     <p>Are you sure you want to delete this file?</p>
-    <p class="text-sm text-gray-600 mt-2">File ID: {selectedFileId}</p>
+    <p class="text-sm text-carbon-text-secondary mt-2">File ID: {selectedFileId}</p>
 </Modal>
 
 <!-- Delete User Files Modal -->
@@ -398,8 +399,8 @@
     danger
 >
     <p>Are you sure you want to delete all files for this user?</p>
-    <p class="text-sm text-gray-600 mt-2">Account: {selectedAccountId}</p>
-    <p class="text-sm text-red-600 mt-2"><strong>This action cannot be undone!</strong></p>
+    <p class="text-sm text-carbon-text-secondary mt-2">Account: {selectedAccountId}</p>
+    <p class="text-sm text-carbon-error mt-2"><strong>This action cannot be undone!</strong></p>
 </Modal>
 
 <!-- Delete All Files Modal -->
@@ -417,7 +418,7 @@
         This will permanently delete <strong>ALL FILES</strong> from
         <strong>ALL USERS</strong> in the system!
     </p>
-    <p class="text-sm text-red-600 mt-4">
+    <p class="text-sm text-carbon-error mt-4">
         <strong>THIS ACTION CANNOT BE UNDONE!</strong>
     </p>
 </Modal>

@@ -1,17 +1,15 @@
 <script lang="ts">
-    import { Button, Tooltip, Truncate } from "carbon-components-svelte";
-    import {
-        Document,
-        Image,
-        Video,
-        Music,
-        Copy,
-        Download,
-        TrashCan,
-        DocumentBlank,
-        Checkmark,
-        Close,
-    } from "carbon-icons-svelte";
+    import { Button, Truncate } from "carbon-components-svelte";
+    import Document from "carbon-icons-svelte/lib/Document.svelte";
+    import Image from "carbon-icons-svelte/lib/Image.svelte";
+    import Video from "carbon-icons-svelte/lib/Video.svelte";
+    import Music from "carbon-icons-svelte/lib/Music.svelte";
+    import Copy from "carbon-icons-svelte/lib/Copy.svelte";
+    import Download from "carbon-icons-svelte/lib/Download.svelte";
+    import TrashCan from "carbon-icons-svelte/lib/TrashCan.svelte";
+    import DocumentBlank from "carbon-icons-svelte/lib/DocumentBlank.svelte";
+    import Checkmark from "carbon-icons-svelte/lib/Checkmark.svelte";
+    import Close from "carbon-icons-svelte/lib/Close.svelte";
     import { FileType } from "$lib/types";
     import { bytesToMB } from "$lib/utils/fileUtils";
     import { copyToClipboard } from "$lib/utils/clipboard";
@@ -26,7 +24,7 @@
 </script>
 
 <div
-    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_130px] hover:bg-zinc-900 w-full"
+    class="grid gap-4 grid-cols-[30px_minmax(0,1fr)_80px_130px] hover:bg-carbon-layer-hover w-full"
 >
     <div class="flex items-center justify-center">
         {#if file.type === FileType.text}
@@ -65,7 +63,7 @@
     >
         {#if open && (file.type === FileType.image || file.type === FileType.video)}
             <div
-                class="fixed top-0 left-0 pointer-events-none p-2 bg-zinc-900 z-50"
+                class="fixed top-0 left-0 pointer-events-none p-2 bg-carbon-layer border border-carbon-border z-50"
                 style:top={`${mousePosition.y + 20}px`}
                 style:left={`${mousePosition.x + 20}px`}
             >
