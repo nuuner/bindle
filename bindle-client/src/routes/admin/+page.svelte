@@ -12,6 +12,7 @@
         Button,
         InlineNotification,
         PasswordInput,
+        Toggle,
     } from "carbon-components-svelte";
     import StatTile from "$lib/components/admin/StatTile.svelte";
     import { formatBytes } from "$lib/utils/fileUtils";
@@ -27,6 +28,10 @@
     let users = $state<AdminUser[]>([]);
     let files = $state<AdminFile[]>([]);
     let stats = $state<AdminStats | null>(null);
+
+    // Most zero-file accounts are throwaways created by a visit that never uploaded
+    // anything, so they are hidden by default.
+    let hideUsersWithoutFiles = $state(true);
 
     let showDeleteAllModal = $state(false);
     let showDeleteUserModal = $state(false);
@@ -134,16 +139,22 @@
 
     // Prepare user table data
     let userHeaders = $derived([
-        { key: "accountId", value: "Account ID" },
-        { key: "fileCount", value: "Files" },
-        { key: "storageUsage", value: "Storage" },
-        { key: "lastLogin", value: "Last Login" },
+        { key: "accountId", value: "Account ID", width: "230px" },
+        { key: "fileCount", value: "Files", width: "100px" },
+        { key: "storageUsage", value: "Storage", width: "120px" },
+        { key: "lastLogin", value: "Last Login", width: "180px" },
         { key: "ipAddresses", value: "IP Addresses" },
-        { key: "actions", value: "Actions" },
+        { key: "actions", value: "Actions", width: "190px" },
     ]);
 
+    let visibleUsers = $derived(
+        hideUsersWithoutFiles ? users.filter((user) => user.fileCount > 0) : users
+    );
+
+    let hiddenUserCount = $derived(users.length - visibleUsers.length);
+
     let userRows = $derived(
-        users.map((user) => ({
+        visibleUsers.map((user) => ({
             id: user.accountId,
             accountId: user.accountId,
             fileCount: user.fileCount,
@@ -154,15 +165,17 @@
         }))
     );
 
-    // Prepare file table data
+    // Explicit widths make Carbon switch the table to `table-layout: fixed`, which stops
+    // one pathologically long file name from squeezing every other column into wrapping.
+    // Name is left unsized so it absorbs the remaining space, and truncates.
     let fileHeaders = $derived([
-        { key: "fileId", value: "File ID" },
+        { key: "fileId", value: "File ID", width: "330px" },
         { key: "fileName", value: "Name" },
-        { key: "accountId", value: "Owner" },
-        { key: "size", value: "Size" },
-        { key: "type", value: "Type" },
-        { key: "createdAt", value: "Created" },
-        { key: "actions", value: "Actions" },
+        { key: "accountId", value: "Owner", width: "230px" },
+        { key: "size", value: "Size", width: "120px" },
+        { key: "type", value: "Type", width: "110px" },
+        { key: "createdAt", value: "Created", width: "180px" },
+        { key: "actions", value: "Actions", width: "150px" },
     ]);
 
     let fileRows = $derived(
@@ -249,44 +262,77 @@
         {/if}
 
         <div>
-            <h2 class="text-2xl font-semibold mb-4">Users ({users.length})</h2>
-            <DataTable headers={userHeaders} rows={userRows}>
-                <svelte:fragment slot="cell" let:row let:cell>
-                    {#if cell.key === "actions"}
-                        <Button
-                            size="small"
-                            kind="danger-ghost"
-                            icon={TrashCan}
-                            on:click={() => handleDeleteUserFiles(cell.value)}
-                            disabled={row.fileCount === 0}
-                        >
-                            Delete Files
-                        </Button>
-                    {:else}
-                        {cell.value}
-                    {/if}
-                </svelte:fragment>
-            </DataTable>
+            <div class="flex flex-wrap items-center justify-between gap-4 mb-4">
+                <h2 class="text-2xl font-semibold">
+                    Users ({visibleUsers.length}{hiddenUserCount > 0
+                        ? ` of ${users.length}`
+                        : ""})
+                </h2>
+                <Toggle
+                    size="sm"
+                    labelText="Hide users with no files"
+                    labelA="Off"
+                    labelB="On"
+                    bind:toggled={hideUsersWithoutFiles}
+                />
+            </div>
+            <div class="overflow-x-auto">
+                <DataTable headers={userHeaders} rows={userRows}>
+                    <svelte:fragment slot="cell" let:row let:cell>
+                        {#if cell.key === "actions"}
+                            <Button
+                                size="small"
+                                kind="danger-ghost"
+                                icon={TrashCan}
+                                on:click={() => handleDeleteUserFiles(cell.value)}
+                                disabled={row.fileCount === 0}
+                            >
+                                Delete Files
+                            </Button>
+                        {:else}
+                            <!-- Only the unsized column can truncate, so only it gets a tooltip. -->
+                            <span
+                                class="block truncate"
+                                title={cell.key === "ipAddresses"
+                                    ? String(cell.value)
+                                    : undefined}
+                            >
+                                {cell.value}
+                            </span>
+                        {/if}
+                    </svelte:fragment>
+                </DataTable>
+            </div>
         </div>
 
         <div>
             <h2 class="text-2xl font-semibold mb-4">Files ({files.length})</h2>
-            <DataTable headers={fileHeaders} rows={fileRows}>
-                <svelte:fragment slot="cell" let:row let:cell>
-                    {#if cell.key === "actions"}
-                        <Button
-                            size="small"
-                            kind="danger-ghost"
-                            icon={TrashCan}
-                            on:click={() => handleDeleteFile(cell.value)}
-                        >
-                            Delete
-                        </Button>
-                    {:else}
-                        {cell.value}
-                    {/if}
-                </svelte:fragment>
-            </DataTable>
+            <div class="overflow-x-auto">
+                <DataTable headers={fileHeaders} rows={fileRows}>
+                    <svelte:fragment slot="cell" let:row let:cell>
+                        {#if cell.key === "actions"}
+                            <Button
+                                size="small"
+                                kind="danger-ghost"
+                                icon={TrashCan}
+                                on:click={() => handleDeleteFile(cell.value)}
+                            >
+                                Delete
+                            </Button>
+                        {:else}
+                            <!-- Only the unsized column can truncate, so only it gets a tooltip. -->
+                            <span
+                                class="block truncate"
+                                title={cell.key === "fileName"
+                                    ? String(cell.value)
+                                    : undefined}
+                            >
+                                {cell.value}
+                            </span>
+                        {/if}
+                    </svelte:fragment>
+                </DataTable>
+            </div>
         </div>
     </div>
 {/if}
