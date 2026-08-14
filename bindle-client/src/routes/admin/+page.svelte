@@ -302,10 +302,17 @@
     on:click:button--secondary={() => window.history.back()}
     preventCloseOnClickOutside
 >
+    <!--
+        tooltipPosition="left" keeps the visibility toggle's tooltip inside the modal's
+        scrolling content area. With Carbon's default "bottom" it is absolutely positioned
+        past the container's edges, which inflates scrollWidth/scrollHeight and makes the
+        modal sprout stray horizontal and vertical scrollbars.
+    -->
     <PasswordInput
         labelText="Admin Password"
         bind:value={password}
         placeholder="Enter admin password"
+        tooltipPosition="left"
         on:keydown={(e) => e.key === "Enter" && handlePasswordSubmit()}
     />
     {#if error}
