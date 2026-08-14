@@ -55,16 +55,20 @@ export const accountService = {
     },
 
     async initializeAccount() {
-        // Check for account ID in URL params first
-        const urlParams = new URLSearchParams(window.location.search);
-        const accountIdFromUrl = urlParams.get('accountId');
-        
+        // Transferred account ids arrive in the fragment (see QRCodeModal). The query
+        // string is still read so that links shared before that change keep working,
+        // but it is the leakier of the two — it reaches the server and its logs.
+        const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ''));
+        const queryParams = new URLSearchParams(window.location.search);
+        const accountIdFromUrl = hashParams.get('accountId') ?? queryParams.get('accountId');
+
         if (accountIdFromUrl) {
-            // Use account ID from URL and save it
+            // Strip the credential from the address bar before doing anything that can
+            // await, so it is not sitting in window.location across a network round trip
+            // where a same-origin request could carry it in a Referer header.
+            window.history.replaceState({}, document.title, window.location.pathname);
             setAccountId(accountIdFromUrl);
             await this.getMe(accountIdFromUrl);
-            // Clean up URL after processing
-            window.history.replaceState({}, document.title, window.location.pathname);
         } else {
             // Fall back to localStorage
             const idFromLocalStorage = localStorage.getItem("bindle.accountId");

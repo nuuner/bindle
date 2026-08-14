@@ -19,8 +19,11 @@
             return;
         }
         
+        // The account id is the credential, so it goes in the fragment rather than the
+        // query string: fragments are never sent to the server, keeping it out of
+        // reverse proxy access logs and out of Referer headers.
         const baseUrl = window.location.origin;
-        const qrUrl = `${baseUrl}?accountId=${accountId}`;
+        const qrUrl = `${baseUrl}/#accountId=${accountId}`;
         
         try {
             await QRCode.toCanvas(qrCanvas, qrUrl, {
