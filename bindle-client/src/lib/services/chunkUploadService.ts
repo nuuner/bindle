@@ -6,7 +6,20 @@ import { withCredentials } from './accountService';
 // layout at init and returns it; the upload loop below uses that, since the server
 // rejects any chunk that does not fit the slice it expects.
 const DEFAULT_CHUNK_SIZE = 10 * 1024 * 1024; // 10 MB
-const MAX_RETRIES = 3;
+
+// A chunk is streamed straight through to object storage, so the server cannot replay it
+// on a transient storage error the way it could when it held the whole chunk in memory -
+// the retry has to come from here. Measured against the real bucket during a bad spell,
+// single chunks needed three attempts, so the budget is set above what was observed
+// rather than at it.
+const MAX_RETRIES = 5;
+
+// How many chunks are in flight at once. Uploading them one after another left the
+// connection idle for a full round trip plus the server's work on every chunk, which on
+// a link with any real latency cost more than the transfer itself. Browsers allow about
+// six connections per host over HTTP/1.1, so this leaves room for the app's other
+// requests rather than starving them behind an upload.
+const CONCURRENT_CHUNKS = 4;
 
 export interface ChunkUploadSession {
 	sessionId: string;
@@ -45,44 +58,10 @@ export async function uploadFileChunked(
 			currentChunk: 0
 		});
 
-		// Upload chunks sequentially
-		const startTime = Date.now();
-		let uploadedBytes = 0;
-
-		for (let chunkNumber = 0; chunkNumber < totalChunks; chunkNumber++) {
-			const start = chunkNumber * chunkSize;
-			const end = Math.min(start + chunkSize, file.size);
-			const chunk = file.slice(start, end);
-
-			// Upload chunk with retry logic
-			const success = await uploadChunkWithRetry(
-				session.sessionId,
-				chunkNumber,
-				chunk,
-				MAX_RETRIES
-			);
-
-			if (!success) {
-				// Abort upload on failure
-				await abortChunkedUpload(session.sessionId);
-				return {
-					success: false,
-					error: `Failed to upload chunk ${chunkNumber + 1}/${totalChunks}`
-				};
-			}
-
-			// Update progress
-			uploadedBytes += chunk.size;
-			const progress = Math.round((uploadedBytes / file.size) * 100);
-			const elapsedSeconds = (Date.now() - startTime) / 1000;
-			const speed = elapsedSeconds > 0 ? uploadedBytes / elapsedSeconds : 0;
-
-			updateUploadingFile(uploadId, {
-				uploadedBytes,
-				progress,
-				speed,
-				currentChunk: chunkNumber + 1
-			});
+		const failure = await uploadAllChunks(file, uploadId, session.sessionId, chunkSize, totalChunks);
+		if (failure) {
+			await abortChunkedUpload(session.sessionId);
+			return { success: false, error: failure };
 		}
 
 		// Complete the upload
@@ -101,6 +80,76 @@ export async function uploadFileChunked(
 		console.error('Chunk upload error:', error);
 		return { success: false, error: error.message || 'Upload failed' };
 	}
+}
+
+/**
+ * Upload every chunk, keeping CONCURRENT_CHUNKS of them in flight. Returns an error
+ * message if the upload could not be completed, or null on success.
+ */
+async function uploadAllChunks(
+	file: File,
+	uploadId: string,
+	sessionId: string,
+	chunkSize: number,
+	totalChunks: number
+): Promise<string | null> {
+	const startTime = Date.now();
+	let uploadedBytes = 0;
+	let completedChunks = 0;
+	let nextChunk = 0;
+	let failure: string | null = null;
+
+	// The first failure cancels the chunks still in flight rather than letting them run
+	// out against a session that is about to be aborted.
+	const controller = new AbortController();
+
+	const worker = async () => {
+		while (!controller.signal.aborted) {
+			const chunkNumber = nextChunk++;
+			if (chunkNumber >= totalChunks) {
+				return;
+			}
+
+			const start = chunkNumber * chunkSize;
+			const end = Math.min(start + chunkSize, file.size);
+			const chunk = file.slice(start, end);
+
+			const success = await uploadChunkWithRetry(
+				sessionId,
+				chunkNumber,
+				chunk,
+				MAX_RETRIES,
+				controller.signal
+			);
+
+			if (!success) {
+				if (!controller.signal.aborted) {
+					failure = `Failed to upload chunk ${chunkNumber + 1}/${totalChunks}`;
+					controller.abort();
+				}
+				return;
+			}
+
+			// Chunks finish out of order, so progress is the total uploaded so far
+			// rather than anything derived from the chunk index.
+			uploadedBytes += chunk.size;
+			completedChunks++;
+			const elapsedSeconds = (Date.now() - startTime) / 1000;
+
+			updateUploadingFile(uploadId, {
+				uploadedBytes,
+				progress: Math.round((uploadedBytes / file.size) * 100),
+				speed: elapsedSeconds > 0 ? uploadedBytes / elapsedSeconds : 0,
+				currentChunk: completedChunks
+			});
+		}
+	};
+
+	await Promise.all(
+		Array.from({ length: Math.min(CONCURRENT_CHUNKS, totalChunks) }, () => worker())
+	);
+
+	return failure;
 }
 
 /**
@@ -141,7 +190,8 @@ async function uploadChunkWithRetry(
 	sessionId: string,
 	chunkNumber: number,
 	chunk: Blob,
-	retriesLeft: number
+	retriesLeft: number,
+	signal: AbortSignal
 ): Promise<boolean> {
 	try {
 		const response = await fetch(
@@ -150,7 +200,8 @@ async function uploadChunkWithRetry(
 				...withCredentials,
 				method: 'POST',
 				headers: getHeaders(false),
-				body: chunk
+				body: chunk,
+				signal
 			}
 		);
 
@@ -160,6 +211,12 @@ async function uploadChunkWithRetry(
 
 		return true;
 	} catch (error) {
+		// Another chunk already failed and took the session down with it; retrying this
+		// one would only add requests against a session that is being aborted.
+		if (signal.aborted) {
+			return false;
+		}
+
 		console.error(
 			`Failed to upload chunk ${chunkNumber}, retries left: ${retriesLeft}`,
 			error
@@ -170,7 +227,7 @@ async function uploadChunkWithRetry(
 			await new Promise((resolve) =>
 				setTimeout(resolve, (MAX_RETRIES - retriesLeft + 1) * 1000)
 			);
-			return uploadChunkWithRetry(sessionId, chunkNumber, chunk, retriesLeft - 1);
+			return uploadChunkWithRetry(sessionId, chunkNumber, chunk, retriesLeft - 1, signal);
 		}
 
 		return false;

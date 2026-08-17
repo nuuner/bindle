@@ -27,10 +27,19 @@ func GetMe(c *fiber.Ctx, db *gorm.DB) error {
 	limitBytes := int64(cfg.UploadLimitMBPerDay * 1000 * 1000)
 	maxFileSizeBytes := int64(cfg.MaxFileSizeMB * 1000 * 1000)
 
+	// Loaded here rather than by the auth middleware, which would otherwise fetch every
+	// file the account owns on every request, chunk uploads included.
+	var files []models.UploadedFile
+	if err := db.Where("owner_id = ?", user.ID).Find(&files).Error; err != nil {
+		return c.Status(fiber.StatusInternalServerError).JSON(fiber.Map{
+			"error": "Failed to get files",
+		})
+	}
+
 	userDTO := models.UserDTO{
 		AccountId: user.AccountId,
 		LastLogin: user.LastLogin,
-		Files:     user.Files,
+		Files:     files,
 	}
 
 	meResponse := models.MeResponse{

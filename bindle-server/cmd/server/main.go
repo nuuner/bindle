@@ -55,8 +55,13 @@ func main() {
 	// single limit and a single quota pool, so the real client IP is read from
 	// ProxyHeader instead - but only for requests arriving from TrustedProxies, since
 	// otherwise any client could set the header and shed both limits.
+	//
+	// StreamRequestBody hands the handler the connection instead of a fully buffered
+	// body, so an upload chunk is encrypted and forwarded to storage as it arrives
+	// rather than being held in memory first.
 	app := fiber.New(fiber.Config{
 		BodyLimit:               int(config.RequestSizeLimitMB) * 1024 * 1024,
+		StreamRequestBody:       true,
 		ProxyHeader:             config.ProxyHeader,
 		EnableTrustedProxyCheck: len(config.TrustedProxies) > 0,
 		TrustedProxies:          config.TrustedProxies,

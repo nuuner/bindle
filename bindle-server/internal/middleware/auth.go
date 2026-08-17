@@ -9,6 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// lastLoginResolution is how far LastLogin is allowed to lag behind the real last
+// request. Account expiration is the only thing reading it, in days.
+const lastLoginResolution = time.Minute
+
 func AuthMiddleware(db *gorm.DB) fiber.Handler {
 	return func(c *fiber.Ctx) error {
 		authHeader := c.Get("Authorization")
@@ -23,8 +27,11 @@ func AuthMiddleware(db *gorm.DB) fiber.Handler {
 			})
 		}
 
+		// Deliberately not preloading Files. This runs on every authenticated request,
+		// including every chunk of an upload, and only GetMe wants the file list - which
+		// loads it itself rather than making every other request pay for it.
 		var user models.User
-		result := db.Preload("Files").Where("account_id = ?", authHeader).First(&user)
+		result := db.Where("account_id = ?", authHeader).First(&user)
 		if result.Error == gorm.ErrRecordNotFound {
 			user = models.User{AccountId: authHeader}
 			if err := db.Create(&user).Error; err != nil {
@@ -38,9 +45,14 @@ func AuthMiddleware(db *gorm.DB) fiber.Handler {
 			})
 		}
 
-		// Update last login time
-		user.LastLogin = time.Now()
-		db.Save(&user)
+		// Only touched when it has gone stale. An upload is a long run of requests from
+		// one account, and writing this on each of them put a synchronous database write
+		// on the critical path of every chunk to move a timestamp by milliseconds. It
+		// feeds account expiration, which is measured in days.
+		if time.Since(user.LastLogin) > lastLoginResolution {
+			user.LastLogin = time.Now()
+			db.Save(&user)
+		}
 
 		// Check if IP connection already exists
 		ipAddress := c.IP()

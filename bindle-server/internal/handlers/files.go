@@ -113,7 +113,7 @@ func UpdateFile(c *fiber.Ctx, db *gorm.DB) error {
 	return c.Status(fiber.StatusOK).JSON(file)
 }
 
-func GetFile(c *fiber.Ctx, db *gorm.DB, storage storage.Storage, filePath string) error {
+func GetFile(c *fiber.Ctx, db *gorm.DB, st storage.Storage, filePath string) error {
 	// Query database to get file metadata (including chunk count and MIME type)
 	var uploadedFile models.UploadedFile
 	result := db.Where("file_path = ?", filePath).First(&uploadedFile)
@@ -126,16 +126,21 @@ func GetFile(c *fiber.Ctx, db *gorm.DB, storage storage.Storage, filePath string
 
 	if result.Error != nil {
 		// File not in database, but might exist in storage (backward compatibility)
-		// Try to retrieve with chunkCount=0 (legacy single-file upload)
-		reader, fileSize, err = storage.GetFileStream(filePath, 0)
+		// Try to retrieve as a legacy single-file upload
+		reader, fileSize, err = st.GetFileStream(filePath, storage.StoredFile{})
 		if err != nil {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "File not found"})
 		}
 		fileName = filePath
 		mimeType = "" // Will detect from content
 	} else {
-		// Get file stream with chunk count for proper decryption
-		reader, fileSize, err = storage.GetFileStream(filePath, uploadedFile.ChunkCount)
+		// Get file stream with the layout it was written in, so the right decryption
+		// path is used for files that predate the streaming format
+		reader, fileSize, err = st.GetFileStream(filePath, storage.StoredFile{
+			EncryptionVersion: uploadedFile.EncryptionVersion,
+			ChunkCount:        uploadedFile.ChunkCount,
+			PlainSize:         uploadedFile.Size,
+		})
 		if err != nil {
 			return c.Status(fiber.StatusNotFound).JSON(fiber.Map{"error": "File not found"})
 		}
@@ -185,7 +190,7 @@ func GetFile(c *fiber.Ctx, db *gorm.DB, storage storage.Storage, filePath string
 		Closer: reader,
 	}
 
-	// Stream file to client (memory-efficient - only ~20MB for any file size)
+	// Stream file to client - one frame of memory for any file size
 	return c.SendStream(reader, int(fileSize))
 }
 

@@ -43,12 +43,15 @@ type UploadSession struct {
 	MimeType string `json:"mimeType"`
 	// ChunkSize is pinned at init so that chunk bounds stay stable for the life of
 	// the session even if CHUNK_SIZE_MB changes underneath it.
-	ChunkSize      int64               `json:"chunkSize"`
-	TotalChunks    int                 `json:"totalChunks"`
-	UploadedChunks int                 `json:"uploadedChunks"`
-	FileHash       string              `json:"fileHash"`
-	Status         UploadSessionStatus `json:"status"`
-	ExpiresAt      time.Time           `json:"expiresAt"`
+	ChunkSize   int64 `json:"chunkSize"`
+	TotalChunks int   `json:"totalChunks"`
+	// FilePath is the object the session writes to, decided at init so the storage
+	// backend can open the upload against its final destination and never move the
+	// data afterwards.
+	FilePath  string              `json:"filePath"`
+	FileHash  string              `json:"fileHash"`
+	Status    UploadSessionStatus `json:"status"`
+	ExpiresAt time.Time           `json:"expiresAt"`
 }
 
 // User related models
@@ -85,8 +88,12 @@ type UploadedFile struct {
 	MimeType   string   `json:"mimeType"`
 	Details    *string  `json:"details,omitempty"`
 	ChunkCount int      `json:"chunkCount" gorm:"default:0"` // 0 = single file upload, >0 = chunked upload
-	OwnerID    uint     `json:"ownerId"`
-	Owner      User
+	// EncryptionVersion selects the reader used to decrypt this file. 0 is everything
+	// stored before the framed streaming format, which is why the default matters:
+	// rows that predate the column have to keep decoding the way they were written.
+	EncryptionVersion int  `json:"-" gorm:"default:0"`
+	OwnerID           uint `json:"ownerId" gorm:"index"`
+	Owner             User
 }
 
 type UploadedFileDTO struct {
@@ -130,9 +137,12 @@ type MeResponse struct {
 }
 
 // Connection tracking models
+// AccountIpConnection links accounts that shared an IP, which is how the daily quota is
+// pooled. Both columns are looked up on their own by the quota walk, and together on
+// every authenticated request, so both are indexed.
 type AccountIpConnection struct {
 	gorm.Model
-	AccountID uint
+	AccountID uint `gorm:"index:idx_account_ip,priority:1;index"`
 	Account   User
-	IPAddress string
+	IPAddress string `gorm:"index:idx_account_ip,priority:2;index"`
 }
