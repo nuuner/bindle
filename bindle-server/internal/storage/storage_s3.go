@@ -6,6 +6,7 @@ import (
 	"io"
 	"log"
 	"mime/multipart"
+	"os"
 	"sort"
 	"sync"
 
@@ -181,26 +182,38 @@ func (s *S3Storage) SaveChunk(sessionID string, chunkNumber int, r io.Reader, pl
 		return fmt.Errorf("failed to set up encryption: %w", err)
 	}
 
+	encryptedSize := utils.EncryptedSize(plainSize)
 	// Part numbers are 1-indexed in S3.
 	partNumber := int32(chunkNumber + 1)
 
-	uploadResp, err := s.client.UploadPart(context.TODO(), &s3.UploadPartInput{
-		Bucket:        aws.String(s.bucket),
-		Key:           aws.String(upload.key),
-		UploadId:      aws.String(upload.uploadID),
-		PartNumber:    aws.Int32(partNumber),
-		Body:          encrypted,
-		ContentLength: aws.Int64(utils.EncryptedSize(plainSize)),
-	}, func(o *s3.Options) {
-		// The body is the client's connection, so it cannot be rewound and the SDK
-		// cannot retry this call - left at the default it burns the retry delay only to
-		// fail with "failed to rewind transport stream". Failing immediately hands the
-		// chunk back to the client, which retries it; re-uploading the part replaces it
-		// rather than adding a duplicate, so a retry is safe.
-		o.RetryMaxAttempts = 1
-	})
+	// The part streams to S3 and is copied to a spool file on the way past. The stream
+	// itself cannot be replayed - it is the client's connection - and the store returns
+	// transient 5xx often enough to matter (measured at 16% of parts during one spell on
+	// B2), so without a copy every one of those costs the client a full re-upload of the
+	// chunk. The copy goes to disk rather than memory, so a chunk is still never held
+	// whole in memory.
+	spool, err := os.CreateTemp("", "bindle-part-")
 	if err != nil {
-		return fmt.Errorf("failed to upload part %d to S3: %w", partNumber, err)
+		return fmt.Errorf("failed to create spool file: %w", err)
+	}
+	defer func() {
+		spool.Close()
+		os.Remove(spool.Name())
+	}()
+
+	uploadResp, err := s.uploadPart(upload, partNumber, io.TeeReader(encrypted, spool), encryptedSize, false)
+	if err != nil {
+		streamErr := err
+		log.Printf("Part %d for session %s failed (%v), retrying from spool\n", partNumber, sessionID, streamErr)
+
+		uploadResp, err = s.uploadPartFromSpool(upload, partNumber, spool, encryptedSize)
+		if err != nil {
+			// The original failure stays in the chain rather than the spool's: when the
+			// body ended early it is the one that says so, and the handler answers that
+			// with a 400 instead of reporting a storage fault.
+			return fmt.Errorf("failed to upload part %d to S3: %w (could not replay: %v)",
+				partNumber, streamErr, err)
+		}
 	}
 
 	s.uploadsMutex.Lock()
@@ -211,6 +224,49 @@ func (s *S3Storage) SaveChunk(sessionID string, chunkNumber int, r io.Reader, pl
 	s.uploadsMutex.Unlock()
 
 	return nil
+}
+
+// uploadPart sends one part. replayable says whether body can be read a second time: the
+// client's stream cannot, so the SDK is told not to attempt a retry it would only fail at
+// with "failed to rewind transport stream". A spool file can, so there the SDK's own
+// retry policy applies.
+func (s *S3Storage) uploadPart(upload *s3Upload, partNumber int32, body io.Reader,
+	size int64, replayable bool) (*s3.UploadPartOutput, error) {
+
+	return s.client.UploadPart(context.TODO(), &s3.UploadPartInput{
+		Bucket:        aws.String(s.bucket),
+		Key:           aws.String(upload.key),
+		UploadId:      aws.String(upload.uploadID),
+		PartNumber:    aws.Int32(partNumber),
+		Body:          body,
+		ContentLength: aws.Int64(size),
+	}, func(o *s3.Options) {
+		if !replayable {
+			o.RetryMaxAttempts = 1
+		}
+	})
+}
+
+// uploadPartFromSpool re-sends a part from the copy taken while it streamed past. It can
+// only do so when the spool holds the whole part: a connection that broke partway through
+// the body leaves it short, and there is nothing to replay, so the chunk goes back to the
+// client to send again. Re-uploading a part replaces it rather than adding a duplicate,
+// so this is safe to do at any point.
+func (s *S3Storage) uploadPartFromSpool(upload *s3Upload, partNumber int32,
+	spool *os.File, size int64) (*s3.UploadPartOutput, error) {
+
+	spooled, err := spool.Seek(0, io.SeekEnd)
+	if err != nil {
+		return nil, err
+	}
+	if spooled != size {
+		return nil, fmt.Errorf("part was only %d of %d bytes when it failed, nothing to replay", spooled, size)
+	}
+	if _, err := spool.Seek(0, io.SeekStart); err != nil {
+		return nil, err
+	}
+
+	return s.uploadPart(upload, partNumber, spool, size, true)
 }
 
 func (s *S3Storage) FinalizeChunkedUpload(sessionID string) (string, error) {

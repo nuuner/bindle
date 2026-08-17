@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -43,6 +44,10 @@ type fakeS3 struct {
 	objects      map[string][]byte
 	copies       int
 	aborted      []string
+	// failFirstAttempt makes every part fail once with the transient 500 the real
+	// bucket returns, so the recovery path can be exercised.
+	failFirstAttempt bool
+	attempts         map[int32]int
 }
 
 func newFakeS3() *fakeS3 {
@@ -51,6 +56,7 @@ func newFakeS3() *fakeS3 {
 		partContentLengths: make(map[int32]int64),
 		partHeaders:        make(map[int32]http.Header),
 		partEncoding:       make(map[int32][]string),
+		attempts:           make(map[int32]int),
 		objects:            make(map[string][]byte),
 	}
 }
@@ -83,6 +89,14 @@ func (f *fakeS3) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
 			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+		f.attempts[int32(partNumber)]++
+		if f.failFirstAttempt && f.attempts[int32(partNumber)] == 1 {
+			// What B2 actually returns: the whole body is read, then a 500.
+			w.Header().Set("Content-Type", "application/xml")
+			w.WriteHeader(http.StatusInternalServerError)
+			fmt.Fprint(w, xml.Header+`<Error><Code>InternalError</Code><Message>internal incident</Message></Error>`)
 			return
 		}
 		f.parts[uploadID][int32(partNumber)] = body
@@ -345,4 +359,93 @@ func keysOf(m map[string][]byte) []string {
 		keys = append(keys, k)
 	}
 	return keys
+}
+
+// The bucket returns transient 500s often enough that a part failing is routine. The part
+// is spooled as it streams past precisely so that this is recovered inside the server,
+// rather than costing the client a re-upload of the whole chunk over its own uplink.
+func TestS3PartRecoversFromTransientFailureWithoutTheClient(t *testing.T) {
+	st, fake := newFakeS3Storage(t)
+	fake.failFirstAttempt = true
+
+	const chunkSize = int64(testChunkSizeMB * 1024 * 1024)
+	plain := testPayload(int(chunkSize) + 777)
+	totalChunks := 2
+	const path = "flaky.bin"
+
+	if err := st.InitChunkedUpload("session", path, totalChunks, chunkSize); err != nil {
+		t.Fatalf("InitChunkedUpload: %v", err)
+	}
+
+	// The reader is handed over exactly once, as the request body would be. If the
+	// recovery needed the client to send again, there would be nothing left to read.
+	for i := 0; i < totalChunks; i++ {
+		start := int64(i) * chunkSize
+		end := start + chunkSize
+		if end > int64(len(plain)) {
+			end = int64(len(plain))
+		}
+		slice := plain[start:end]
+		if err := st.SaveChunk("session", i, bytes.NewReader(slice), int64(len(slice))); err != nil {
+			t.Fatalf("SaveChunk(%d) did not recover from the transient failure: %v", i, err)
+		}
+	}
+
+	if _, err := st.FinalizeChunkedUpload("session"); err != nil {
+		t.Fatalf("FinalizeChunkedUpload: %v", err)
+	}
+
+	for part, count := range fake.attempts {
+		if count < 2 {
+			t.Errorf("part %d was sent %d times, so the failure was never retried", part, count)
+		}
+	}
+
+	reader, _, err := st.GetFileStream(path, StoredFile{
+		EncryptionVersion: utils.EncryptionVersionStream,
+		PlainSize:         int64(len(plain)),
+	})
+	if err != nil {
+		t.Fatalf("GetFileStream: %v", err)
+	}
+	defer reader.Close()
+
+	got, err := io.ReadAll(reader)
+	if err != nil {
+		t.Fatalf("read back: %v", err)
+	}
+	if !bytes.Equal(got, plain) {
+		t.Error("the object retried from the spool does not match what was uploaded")
+	}
+}
+
+// If the connection breaks partway through the body there is no complete copy to replay,
+// and the chunk has to go back to the client rather than a short part being sent.
+func TestS3PartialBodyIsNotReplayed(t *testing.T) {
+	st, fake := newFakeS3Storage(t)
+	fake.failFirstAttempt = true
+
+	const chunkSize = int64(testChunkSizeMB * 1024 * 1024)
+	if err := st.InitChunkedUpload("session", "short.bin", 1, chunkSize); err != nil {
+		t.Fatalf("InitChunkedUpload: %v", err)
+	}
+
+	// A body that ends early: encryption fails, so the spool never holds a whole part.
+	err := st.SaveChunk("session", 0, bytes.NewReader(testPayload(100)), chunkSize)
+	if err == nil {
+		t.Fatal("a truncated chunk was accepted")
+	}
+
+	// The handler tells a short body apart from a storage fault by this, answering the
+	// first with a 400, so the cause has to survive the failed replay attempt.
+	if !errors.Is(err, utils.ErrShortSource) {
+		t.Errorf("error lost the short-body cause: %v", err)
+	}
+
+	st.uploadsMutex.RLock()
+	parts := len(st.uploads["session"].parts)
+	st.uploadsMutex.RUnlock()
+	if parts != 0 {
+		t.Errorf("a truncated chunk recorded %d parts, want 0", parts)
+	}
 }
