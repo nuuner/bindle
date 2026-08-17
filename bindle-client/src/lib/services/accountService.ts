@@ -13,10 +13,16 @@ export const getHeaders = (isJson: boolean = true, accountId?: string) => {
     return headers;
 };
 
+// The unlock cookie is what lifts the daily upload limit, and in development the client
+// and the API are different origins, where cookies only ride along when the request asks
+// for them explicitly.
+export const withCredentials = { credentials: "include" } as const;
+
 export const accountService = {
     async getMe(accountId?: string): Promise<Account> {
         try {
             const response = await fetch(`${config.apiHost}/me`, {
+                ...withCredentials,
                 headers: getHeaders(false, accountId),
             });
 
@@ -46,12 +52,42 @@ export const accountService = {
 
     async deleteAccount() {
         const response = await fetch(`${config.apiHost}/me`, {
+            ...withCredentials,
             method: "DELETE",
             headers: getHeaders(),
         });
         const json = await response.json();
         setAccountId(undefined);
         await this.initializeAccount();
+    },
+
+    // Exchanges the shared password for the cookie that lifts the daily upload limit.
+    // The cookie is set by the server and is HttpOnly, so the only way to observe the
+    // result is to ask for the account again.
+    async unlockLimits(password: string): Promise<void> {
+        const response = await fetch(`${config.apiHost}/unlock`, {
+            ...withCredentials,
+            method: "POST",
+            headers: getHeaders(),
+            body: JSON.stringify({ password }),
+        });
+
+        if (!response.ok) {
+            const body = await response.json().catch(() => undefined);
+            throw new Error(body?.error || "Failed to unlock limits");
+        }
+
+        await this.getMe();
+    },
+
+    async lockLimits(): Promise<void> {
+        await fetch(`${config.apiHost}/unlock`, {
+            ...withCredentials,
+            method: "DELETE",
+            headers: getHeaders(),
+        });
+
+        await this.getMe();
     },
 
     async initializeAccount() {

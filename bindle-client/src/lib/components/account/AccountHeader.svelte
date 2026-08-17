@@ -1,6 +1,9 @@
 <script lang="ts">
     import { fileService } from "$lib/services/api.svelte";
-    import { getAccountId } from "$lib/stores/accountStore.client.svelte";
+    import {
+        getAccount,
+        getAccountId,
+    } from "$lib/stores/accountStore.client.svelte";
     import {
         CopyButton,
         OverflowMenu,
@@ -15,8 +18,12 @@
     let {
         deleteAccountDialog = $bindable(),
         accountChangeDialog = $bindable(),
+        unlockLimitsDialog = $bindable(),
     } = $props();
-    
+
+    // Nothing to unlock unless the server has a password configured for it.
+    let unlockAvailable = $derived(getAccount()?.unlockAvailable ?? false);
+
     let qrCodeModalOpen = $state(false);
 
     function handleFileUpload(event: CustomEvent<readonly File[]>) {
@@ -51,6 +58,15 @@
                         on:click={() =>
                             setTimeout(() => (accountChangeDialog = true))}
                     />
+                    {#if unlockAvailable}
+                        <OverflowMenuItem
+                            text={getAccount()?.limitsUnlocked
+                                ? "Limits unlocked"
+                                : "Unlock limits"}
+                            on:click={() =>
+                                setTimeout(() => (unlockLimitsDialog = true))}
+                        />
+                    {/if}
                     <OverflowMenuItem
                         text="Delete account"
                         danger

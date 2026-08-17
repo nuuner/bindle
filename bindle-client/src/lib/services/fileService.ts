@@ -4,7 +4,7 @@ import { addFile, deleteFile as removeFileFromStore } from "$lib/stores/fileStor
 import { addUploadingFile, removeUploadingFile, updateUploadingFile } from '$lib/stores/uploadStore.svelte';
 import { setError } from "$lib/stores/errorStore.svelte";
 import type { UploadedFile } from '$lib/types';
-import { accountService } from "./accountService";
+import { accountService, withCredentials } from "./accountService";
 import { uploadFileChunked } from "./chunkUploadService";
 
 export const getHeaders = (isJson: boolean = true, accountId?: string) => {
@@ -19,6 +19,7 @@ export const getHeaders = (isJson: boolean = true, accountId?: string) => {
 export const fileService = {
     async getFiles() {
         const response = await fetch(`${config.apiHost}/files`, {
+            ...withCredentials,
             headers: getHeaders(),
         });
         return response.json();
@@ -26,6 +27,7 @@ export const fileService = {
 
     async updateFile(file: UploadedFile) {
         const response = await fetch(`${config.apiHost}/file`, {
+            ...withCredentials,
             method: "PUT",
             headers: getHeaders(true),
             body: JSON.stringify(file),
@@ -45,7 +47,7 @@ export const fileService = {
             return;
         }
 
-        if (account && account.uploadLimitBytes && account.uploadLimitBytes < (file.size + account.uploadedBytes)) {
+        if (!account.limitsUnlocked && account.uploadLimitBytes && account.uploadLimitBytes < (file.size + account.uploadedBytes)) {
             setError(`Upload limit exceeded. You may only upload up to ${Math.round(account.uploadLimitBytes / 1000 / 1000)}MB per day. Wait or delete some files.`);
             return;
         }
@@ -74,6 +76,7 @@ export const fileService = {
 
     async deleteFile(fileId: string) {
         const response = await fetch(`${config.apiHost}/file/${fileId}`, {
+            ...withCredentials,
             method: "DELETE",
             headers: getHeaders(),
         });

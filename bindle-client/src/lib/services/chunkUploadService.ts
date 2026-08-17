@@ -1,5 +1,6 @@
 import { updateUploadingFile } from '../stores/uploadStore.svelte';
 import { getHeaders } from './fileService';
+import { withCredentials } from './accountService';
 
 // Only used to size the initial request. The server pins the authoritative chunk
 // layout at init and returns it; the upload loop below uses that, since the server
@@ -111,6 +112,7 @@ async function initChunkedUpload(
 ): Promise<ChunkUploadSession | null> {
 	try {
 		const response = await fetch('/api/file/chunk/init', {
+			...withCredentials,
 			method: 'POST',
 			headers: getHeaders(true),
 			body: JSON.stringify({
@@ -145,6 +147,7 @@ async function uploadChunkWithRetry(
 		const response = await fetch(
 			`/api/file/chunk/${sessionId}/${chunkNumber}`,
 			{
+				...withCredentials,
 				method: 'POST',
 				headers: getHeaders(false),
 				body: chunk
@@ -180,6 +183,7 @@ async function uploadChunkWithRetry(
 async function completeChunkedUpload(sessionId: string): Promise<any | null> {
 	try {
 		const response = await fetch(`/api/file/chunk/${sessionId}/complete`, {
+			...withCredentials,
 			method: 'POST',
 			headers: getHeaders(true)
 		});
@@ -201,6 +205,7 @@ async function completeChunkedUpload(sessionId: string): Promise<any | null> {
 export async function abortChunkedUpload(sessionId: string): Promise<void> {
 	try {
 		await fetch(`/api/file/chunk/${sessionId}`, {
+			...withCredentials,
 			method: 'DELETE',
 			headers: getHeaders(true)
 		});

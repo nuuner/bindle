@@ -30,4 +30,12 @@ export interface Account {
     uploadedBytes: number;
     uploadLimitBytes: number;
     maxFileSizeBytes: number;
+    /**
+     * This browser holds an unlock cookie, so uploadLimitBytes does not apply to it.
+     */
+    limitsUnlocked: boolean;
+    /**
+     * The server has an unlock password configured. Without one there is nothing to unlock.
+     */
+    unlockAvailable: boolean;
 }

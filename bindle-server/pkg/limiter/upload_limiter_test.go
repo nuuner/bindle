@@ -1,10 +1,15 @@
 package limiter
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 
+	"github.com/gofiber/fiber/v2"
+	"github.com/nuuner/bindle-server/internal/config"
 	"github.com/nuuner/bindle-server/internal/models"
+	"github.com/nuuner/bindle-server/pkg/unlock"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
 )
@@ -157,5 +162,73 @@ func TestGetUsedBytesSumsAcrossLinkedAccounts(t *testing.T) {
 	}
 	if used != 1250 {
 		t.Errorf("expected 1250 bytes across both accounts, got %d", used)
+	}
+}
+
+// throttleWithCookie runs ShouldThrottle against a request carrying the given cookies,
+// for an account that has already used up the whole daily quota.
+func throttleWithCookie(t *testing.T, cfg *config.Config, cookie *fiber.Cookie) bool {
+	t.Helper()
+
+	db := newTestDB(t)
+	user := seedUser(t, db, "aaaaaaaaaaaaaaaaaaaaaa")
+	spent := models.UploadedFile{FileId: "f1", FilePath: "a.bin",
+		Size: cfg.UploadLimitMBPerDay * 1000 * 1000, OwnerID: user.ID}
+	if err := db.Create(&spent).Error; err != nil {
+		t.Fatalf("failed to seed file: %v", err)
+	}
+
+	var throttled bool
+	app := fiber.New()
+	app.Post("/upload", func(c *fiber.Ctx) error {
+		// The quota follows the accounts linked to the request's IP, which is only known
+		// once the request is in flight.
+		if err := db.Create(&models.AccountIpConnection{AccountID: user.ID, IPAddress: c.IP()}).Error; err != nil {
+			t.Errorf("failed to seed IP connection: %v", err)
+		}
+		throttled = ShouldThrottle(c, db, cfg, 1000)
+		return c.SendStatus(fiber.StatusOK)
+	})
+
+	req := httptest.NewRequest("POST", "/upload", nil)
+	if cookie != nil {
+		req.AddCookie(&http.Cookie{Name: cookie.Name, Value: cookie.Value})
+	}
+	if _, err := app.Test(req); err != nil {
+		t.Fatalf("test request failed: %v", err)
+	}
+
+	return throttled
+}
+
+func TestShouldThrottleWhenQuotaIsSpent(t *testing.T) {
+	cfg := &config.Config{UploadLimitMBPerDay: 10, UnlockPassword: "s3cret"}
+
+	if !throttleWithCookie(t, cfg, nil) {
+		t.Error("expected an account over its daily quota to be throttled")
+	}
+}
+
+func TestUnlockCookieLiftsTheQuota(t *testing.T) {
+	cfg := &config.Config{UploadLimitMBPerDay: 10, UnlockPassword: "s3cret"}
+	valid := &fiber.Cookie{
+		Name:  unlock.CookieName,
+		Value: unlock.IssueToken(cfg.UnlockPassword, time.Now().Add(time.Hour)),
+	}
+
+	if throttleWithCookie(t, cfg, valid) {
+		t.Error("expected a valid unlock cookie to lift the daily quota")
+	}
+}
+
+func TestForgedUnlockCookieDoesNotLiftTheQuota(t *testing.T) {
+	cfg := &config.Config{UploadLimitMBPerDay: 10, UnlockPassword: "s3cret"}
+	forged := &fiber.Cookie{
+		Name:  unlock.CookieName,
+		Value: unlock.IssueToken("guessed password", time.Now().Add(time.Hour)),
+	}
+
+	if !throttleWithCookie(t, cfg, forged) {
+		t.Error("expected a cookie signed with the wrong password to be ignored")
 	}
 }

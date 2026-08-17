@@ -8,6 +8,7 @@ import (
 	"github.com/nuuner/bindle-server/internal/models"
 	"github.com/nuuner/bindle-server/internal/storage"
 	"github.com/nuuner/bindle-server/pkg/limiter"
+	"github.com/nuuner/bindle-server/pkg/unlock"
 	"github.com/nuuner/bindle-server/pkg/utils"
 	"gorm.io/gorm"
 )
@@ -37,6 +38,8 @@ func GetMe(c *fiber.Ctx, db *gorm.DB) error {
 		UploadedBytes:    uploadedBytes,
 		UploadLimitBytes: limitBytes,
 		MaxFileSizeBytes: maxFileSizeBytes,
+		LimitsUnlocked:   unlock.IsUnlocked(c, &cfg),
+		UnlockAvailable:  cfg.UnlockPassword != "",
 	}
 
 	return c.JSON(meResponse)

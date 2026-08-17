@@ -121,6 +121,12 @@ type MeResponse struct {
 	UploadedBytes    int64   `json:"uploadedBytes"`
 	UploadLimitBytes int64   `json:"uploadLimitBytes"`
 	MaxFileSizeBytes int64   `json:"maxFileSizeBytes"`
+	// Whether this client holds a valid unlock cookie, in which case UploadLimitBytes
+	// does not apply to it.
+	LimitsUnlocked bool `json:"limitsUnlocked"`
+	// Whether the server has an unlock password configured at all. The client hides the
+	// unlock option when it does not.
+	UnlockAvailable bool `json:"unlockAvailable"`
 }
 
 // Connection tracking models

@@ -6,6 +6,7 @@ import (
 	"github.com/gofiber/fiber/v2"
 	"github.com/nuuner/bindle-server/internal/config"
 	"github.com/nuuner/bindle-server/internal/models"
+	"github.com/nuuner/bindle-server/pkg/unlock"
 	"gorm.io/gorm"
 )
 
@@ -97,6 +98,12 @@ func getUsedBytes(db *gorm.DB, accountIDs []uint) (int64, error) {
 }
 
 func ShouldThrottle(c *fiber.Ctx, db *gorm.DB, config *config.Config, fileSize int64) bool {
+	// A client holding a valid unlock cookie has no daily quota at all. Checked here
+	// rather than at each call site so every upload path is covered by construction.
+	if unlock.IsUnlocked(c, config) {
+		return false
+	}
+
 	ipAddress := c.IP()
 
 	// Get all connected accounts and IPs

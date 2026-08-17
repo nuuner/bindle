@@ -128,6 +128,14 @@ func main() {
 	api.Delete("/me", sensitiveRateLimiter, func(c *fiber.Ctx) error {
 		return handlers.DeleteAccount(c, db, storageInstance)
 	})
+	// Unlocking is a password guess against a single shared secret, so it sits behind the
+	// aggressive rate limiter rather than the global one.
+	api.Post("/unlock", sensitiveRateLimiter, func(c *fiber.Ctx) error {
+		return handlers.UnlockLimits(c, &config)
+	})
+	api.Delete("/unlock", func(c *fiber.Ctx) error {
+		return handlers.LockLimits(c, &config)
+	})
 	api.Post("/file", func(c *fiber.Ctx) error {
 		return handlers.UploadFile(c, db, &config, storageInstance)
 	})

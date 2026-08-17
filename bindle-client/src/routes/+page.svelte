@@ -2,6 +2,7 @@
     import { onMount, onDestroy } from "svelte";
     import AccountChangeDialog from "$lib/components/account/AccountChangeDialog.svelte";
     import DeleteAccountDialog from "$lib/components/account/DeleteAccountDialog.svelte";
+    import UnlockLimitsDialog from "$lib/components/account/UnlockLimitsDialog.svelte";
     import FileModal from "$lib/components/files/FileModal.svelte";
     import FileList from "$lib/components/files/FileList.svelte";
     import StorageIndicator from "$lib/components/files/StorageIndicator.svelte";
@@ -19,6 +20,7 @@
 
     let deleteAccountDialog = $state(false);
     let accountChangeDialog = $state(false);
+    let unlockLimitsDialog = $state(false);
 
     onMount(async () => {
         await accountService.initializeAccount();
@@ -31,7 +33,11 @@
 </script>
 
 <div class="flex flex-col gap-4">
-    <AccountHeader bind:deleteAccountDialog bind:accountChangeDialog />
+    <AccountHeader
+        bind:deleteAccountDialog
+        bind:accountChangeDialog
+        bind:unlockLimitsDialog
+    />
     {#if getAccountId() && getAccount()?.uploadedBytes}
         <StorageIndicator />
     {/if}
@@ -44,4 +50,5 @@
 <FileDropArea />
 <DeleteAccountDialog bind:open={deleteAccountDialog} />
 <AccountChangeDialog bind:open={accountChangeDialog} />
+<UnlockLimitsDialog bind:open={unlockLimitsDialog} />
 <FileModal />

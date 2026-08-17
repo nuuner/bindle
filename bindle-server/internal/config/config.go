@@ -31,6 +31,9 @@ type Config struct {
 	UploadLimitMBPerDay int64
 	ChunkSizeMB         int64
 	MaxFileSizeMB       int64
+	// Shared secret that lifts the daily upload limit for whoever enters it. Empty
+	// disables the feature: there is then no password to enter and no cookie is honoured.
+	UnlockPassword string
 	// Encryption
 	EncryptionKey []byte
 }
@@ -120,6 +123,7 @@ func GetConfig() Config {
 		UploadLimitMBPerDay:   uploadLimitMBPerDay,
 		ChunkSizeMB:           chunkSizeMB,
 		MaxFileSizeMB:         maxFileSizeMB,
+		UnlockPassword:        os.Getenv("UNLOCK_PASSWORD"),
 		EncryptionKey:         encryptionKeyBytes,
 	}
 

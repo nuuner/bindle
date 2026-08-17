@@ -38,6 +38,9 @@ UPLOAD_LIMIT_MB_PER_DAY=1000
 
 # Admin password for /admin panel (optional)
 ADMIN_PASSWORD=your_secure_password_here
+
+# Password that lifts the daily upload limit (optional)
+UNLOCK_PASSWORD=your_unlock_password_here
 ```
 
 or
@@ -54,6 +57,9 @@ UPLOAD_LIMIT_MB_PER_DAY=1000
 
 # Admin password for /admin panel (optional)
 ADMIN_PASSWORD=your_secure_password_here
+
+# Password that lifts the daily upload limit (optional)
+UNLOCK_PASSWORD=your_unlock_password_here
 ```
 
 3. Also create a `.env` file in the `bindle-client` directory:
@@ -96,6 +102,26 @@ Make sure the container's port is not also published on the host. A published po
 second route to the app that does not pass through the proxy, and requests arriving that
 way can still carry a peer address inside the trusted range — which would let a client
 set the header itself and shed both the rate limit and the upload quota.
+
+## Unlocking the daily upload limit
+
+Everyone shares the same `UPLOAD_LIMIT_MB_PER_DAY` allowance, keyed on their IP. Set an
+unlock password to give trusted people a way around it:
+
+```env
+UNLOCK_PASSWORD=your_unlock_password_here
+```
+
+They then pick **Unlock limits** from the account menu and enter the password. The server
+answers with a signed, HttpOnly cookie that is valid for 30 days, and any request carrying
+it skips the daily quota entirely — `MAX_FILE_SIZE_MB` still applies. The same dialog locks
+the browser again, and so does clearing cookies.
+
+Without `UNLOCK_PASSWORD` set there is no unlock: the menu option is hidden and no cookie
+is honoured. Changing the password invalidates every cookie already handed out, since the
+cookie is signed with the password itself. Guesses go through the same rate limit as the
+other sensitive routes, but this is one shared secret for everyone who has it — treat it
+like the admin password rather than a per-user login.
 
 ## Admin Panel
 
