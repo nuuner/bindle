@@ -61,6 +61,13 @@ func GetConfig() Config {
 		uploadLimitMBPerDay = 1000
 	}
 
+	// 10 MB rather than the 5 MB floor S3 multipart allows. Halving it looks like it
+	// would halve what a failed part costs, but object storage fails at a rate that is
+	// roughly constant per part rather than per byte - measured against the bucket, 5 MB
+	// parts failed about twice as often as 10 MB ones - so the wasted bytes come out the
+	// same either way, and the smaller size only adds request overhead. Whatever this is
+	// set to must be a whole number of megabytes, so that it stays a whole number of
+	// encryption frames and the frame grid survives chunk boundaries.
 	chunkSizeMB, err := strconv.ParseInt(os.Getenv("CHUNK_SIZE_MB"), 10, 64)
 	if err != nil {
 		log.Println("No CHUNK_SIZE_MB environment variable found, using default value of 10MB")

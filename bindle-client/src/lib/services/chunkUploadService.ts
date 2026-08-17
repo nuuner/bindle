@@ -16,9 +16,13 @@ const MAX_RETRIES = 5;
 
 // How many chunks are in flight at once. Uploading them one after another left the
 // connection idle for a full round trip plus the server's work on every chunk, which on
-// a link with any real latency cost more than the transfer itself. Browsers allow about
-// six connections per host over HTTP/1.1, so this leaves room for the app's other
-// requests rather than starving them behind an upload.
+// a link with any real latency cost more than the transfer itself.
+//
+// Raising this does not buy proportional bandwidth: over HTTP/2, which is what the
+// deployment serves, all of these are streams on a single TCP connection and share its
+// congestion window. What the concurrency actually removes is the stall between chunks,
+// and four is enough for that. Going higher only helps where each request gets its own
+// connection, which the browser is not doing.
 const CONCURRENT_CHUNKS = 4;
 
 export interface ChunkUploadSession {
