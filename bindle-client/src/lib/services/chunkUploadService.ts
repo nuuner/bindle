@@ -99,6 +99,12 @@ async function uploadAllChunks(
 	let nextChunk = 0;
 	let failure: string | null = null;
 
+	// Chunks that landed inside the speed window, as [completedAt, bytes]. The reported
+	// speed used to be the average over the whole upload, which meant a slow patch early
+	// on - a congested link, a storage hiccup - kept the number low for minutes after the
+	// upload had recovered, and read as "still slow" when it no longer was.
+	const recent: Array<[number, number]> = [];
+
 	// The first failure cancels the chunks still in flight rather than letting them run
 	// out against a session that is about to be aborted.
 	const controller = new AbortController();
@@ -134,12 +140,11 @@ async function uploadAllChunks(
 			// rather than anything derived from the chunk index.
 			uploadedBytes += chunk.size;
 			completedChunks++;
-			const elapsedSeconds = (Date.now() - startTime) / 1000;
 
 			updateUploadingFile(uploadId, {
 				uploadedBytes,
 				progress: Math.round((uploadedBytes / file.size) * 100),
-				speed: elapsedSeconds > 0 ? uploadedBytes / elapsedSeconds : 0,
+				speed: recordSpeedSample(recent, chunk.size, startTime),
 				currentChunk: completedChunks
 			});
 		}
@@ -150,6 +155,40 @@ async function uploadAllChunks(
 	);
 
 	return failure;
+}
+
+// How far back the reported speed looks. Long enough that finishing one 10 MB chunk
+// does not swing the number around, short enough that it reflects the link as it is now.
+const SPEED_WINDOW_MS = 15000;
+
+/**
+ * Record a completed chunk and return the upload speed over the recent window, in bytes
+ * per second. Falls back to the average since the start until the window has filled,
+ * which is the best estimate available that early.
+ */
+function recordSpeedSample(
+	recent: Array<[number, number]>,
+	bytes: number,
+	startTime: number
+): number {
+	const now = Date.now();
+	recent.push([now, bytes]);
+
+	const cutoff = now - SPEED_WINDOW_MS;
+	while (recent.length > 1 && recent[0][0] < cutoff) {
+		recent.shift();
+	}
+
+	// Measure from the sample before the window, since the bytes of the first sample in
+	// it were transferred over the interval leading up to it, not after it.
+	const windowStart = Math.max(startTime, cutoff);
+	const seconds = (now - windowStart) / 1000;
+	if (seconds <= 0) {
+		return 0;
+	}
+
+	const windowBytes = recent.reduce((total, [, size]) => total + size, 0);
+	return windowBytes / seconds;
 }
 
 /**
